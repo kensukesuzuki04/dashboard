@@ -28,9 +28,11 @@
         <span class="view-btn"        onclick="setView('list',this)">List</span>
         <span class="view-btn"        onclick="setView('board',this)">Board</span>
         <span class="view-btn"        onclick="setView('week',this)">Week</span>
+        <span class="view-btn"        onclick="setView('month',this)">Month</span>
       </div>
     </div>
     <div style="display:flex;gap:.4rem;">
+      <button class="btn btn-ghost no-print" id="print-btn" style="display:none" onclick="printView()">🖨 Print</button>
       <button class="btn btn-ghost" onclick="openProjectModal()">⚙ Projects</button>
       <button class="btn btn-ghost" onclick="openModal('bulk-modal')">📢 Bulk Assign</button>
       <button class="btn btn-primary" onclick="openAddTodo()">+ Add Todo</button>
@@ -146,6 +148,7 @@
              onkeydown="if(event.key==='Enter')addProject()">
       <button class="btn btn-primary" onclick="addProject()">Add</button>
     </div>
+    <div id="proj-add-err" style="color:var(--red);font-size:.8rem;margin-top:.4rem;min-height:1rem;"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('project-modal')">Close</button>
     </div>
@@ -253,6 +256,7 @@ if (!pw) window.location.href = 'index.html';
 const PALETTE = ['#3182ce','#48bb78','#ed8936','#9f7aea','#e53e3e','#38b2ac','#d69e2e','#b794f4'];
 let allTodos = [], allProjects = [], allStudents = [];
 let currentFilter = 'all', currentView = 'today', currentTagFilter = null;
+let currentMonth = new Date();
 let todoMap = {};
 
 // ===== INIT =====
@@ -288,7 +292,10 @@ function setView(v, el) {
   el.classList.add('active');
   const panel = document.getElementById('panel-todos');
   panel.classList.toggle('board-mode', v === 'board' || v === 'week');
-  document.getElementById('filter-bar').style.display = (v === 'list') ? 'flex' : 'none';
+  panel.classList.toggle('month-mode', v === 'month');
+  const showFilter = ['list','week','month'].includes(v);
+  document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
+  document.getElementById('print-btn').style.display  = (v === 'week' || v === 'month') ? '' : 'none';
   renderTodos();
 }
 
@@ -300,9 +307,11 @@ async function loadTodos() {
 }
 
 function populateFilterBar() {
+  const hasUncat = allTodos.some(t => !allProjects.some(p => p.name === t.category));
   document.getElementById('filter-bar').innerHTML =
     '<span class="chip active" onclick="setFilter(\'all\',this)">All</span>' +
-    allProjects.map(p => `<span class="chip" onclick="setFilter('${escHtml(p.name)}',this)">${escHtml(p.name)}</span>`).join('');
+    allProjects.map(p => `<span class="chip" onclick="setFilter('${escHtml(p.name)}',this)">${escHtml(p.name)}</span>`).join('') +
+    (hasUncat ? '<span class="chip" onclick="setFilter(\'Uncategorized\',this)" style="border-style:dashed">Uncategorized</span>' : '');
 }
 
 function populateCategoryDropdown() {
@@ -323,7 +332,7 @@ function renderTodos() {
   // Tag bar: only in list view
   const tagBar = document.getElementById('tag-bar');
   const tags   = getAllTags();
-  if (currentView === 'list' && tags.length) {
+  if (['list','week','month'].includes(currentView) && tags.length) {
     tagBar.style.display = 'flex';
     tagBar.innerHTML = '<span class="tag-bar-label">Tags:</span>' +
       tags.map(tag => `<span class="chip tag-chip${currentTagFilter===tag?' active':''}" onclick="setTagFilter('${escHtml(tag)}',this)">${escHtml(tag)}</span>`).join('');
@@ -334,6 +343,7 @@ function renderTodos() {
   if      (currentView === 'today') renderTodayView(el);
   else if (currentView === 'board') renderBoardView(el);
   else if (currentView === 'week')  renderWeekView(el);
+  else if (currentView === 'month') renderMonthView(el);
   else                               renderListView(el);
 }
 
@@ -354,19 +364,41 @@ function renderTodayView(el) {
              <div class="todo-list">${dueToday.map(todoCardHtml).join('')}</div>`;
   }
   if (!overdue.length && !dueToday.length) {
-    html = '<p class="empty" style="padding:1rem 0;">Nothing due today 🎉</p>';
+    html += '<p class="empty" style="padding:1rem 0;">Nothing due today 🎉</p>';
   }
+
+  // Weekly mini-view below
+  const now = new Date(td + 'T00:00:00');
+  const dow = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  html += '<div class="section-label" style="margin-top:1.8rem;">This Week</div><div class="week-view">';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const ds = d.toISOString().slice(0,10);
+    const isToday = ds === td;
+    const dayTodos = allTodos.filter(t => t.due_date === ds)
+      .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
+    html += `<div class="week-day${isToday?' week-today':''}">
+      <div class="week-day-header"><span>${DAYS[i]}</span><span class="week-date">${ds.slice(5)}</span></div>
+      <div class="week-cards">
+        ${dayTodos.length ? dayTodos.map(t => {
+          const done  = t.status === 'done';
+          const color = projectColor(t.category);
+          return `<div class="week-card${done?' done':''}" style="border-left-color:${color}" onclick="openEditTodo('${t.id}')">
+            <div style="${done?'text-decoration:line-through;':''}">${escHtml(t.title)}</div>
+          </div>`;
+        }).join('') : '<div class="week-empty">—</div>'}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
   el.innerHTML = html;
 }
 
 function renderListView(el) {
-  let items = currentFilter === 'all'
-    ? allTodos
-    : allTodos.filter(t => t.category === currentFilter);
-  if (currentTagFilter) {
-    items = items.filter(t => t.tags &&
-      t.tags.split(',').map(s => s.trim()).includes(currentTagFilter));
-  }
+  let items = filterTodos(allTodos);
   items = items.sort((a,b) => {
     if (a.status==='done' && b.status!=='done') return 1;
     if (b.status==='done' && a.status!=='done') return -1;
@@ -418,7 +450,7 @@ function renderWeekView(el) {
     d.setDate(monday.getDate() + i);
     const dateStr = d.toISOString().slice(0,10);
     const isToday = dateStr === td;
-    const dayTodos = allTodos.filter(t => t.due_date === dateStr)
+    const dayTodos = filterTodos(allTodos).filter(t => t.due_date === dateStr)
       .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
     html += `<div class="week-day${isToday?' week-today':''}">
       <div class="week-day-header">
@@ -439,6 +471,70 @@ function renderWeekView(el) {
   }
   html += '</div>';
   el.innerHTML = html;
+}
+
+function renderMonthView(el) {
+  const year  = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const td    = today();
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+  const lastDate = new Date(year, month + 1, 0).getDate();
+  const MNAMES = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const DNAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const filtered = filterTodos(allTodos);
+
+  let html = `<div class="month-nav no-print">
+    <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">◀</button>
+    <span class="month-title">${MNAMES[month]} ${year}</span>
+    <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">▶</button>
+    <button class="btn btn-ghost btn-sm" onclick="goToday()">Today</button>
+  </div>
+  <div class="month-grid">
+    ${DNAMES.map(d => `<div class="month-day-name">${d}</div>`).join('')}`;
+
+  for (let i = 0; i < firstDow; i++) html += '<div class="month-cell month-empty"></div>';
+
+  for (let d = 1; d <= lastDate; d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === td;
+    const dayTodos = filtered.filter(t => t.due_date === ds)
+      .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
+    html += `<div class="month-cell${isToday?' month-today':''}">
+      <div class="month-day-num${isToday?' today-num':''}">${d}</div>
+      <div class="month-events">
+        ${dayTodos.slice(0,4).map(t => {
+          const done  = t.status === 'done';
+          const color = projectColor(t.category);
+          return `<div class="month-event${done?' done':''}" style="border-left-color:${color}" onclick="openEditTodo('${t.id}')">
+            <span style="${done?'text-decoration:line-through;':''}">${escHtml(t.title)}</span>
+            ${t.tags ? `<span style="font-size:.65rem;color:var(--gray-600);"> · ${t.tags.split(',').map(s=>s.trim()).join(', ')}</span>` : ''}
+          </div>`;
+        }).join('')}
+        ${dayTodos.length > 4 ? `<div class="month-more">+${dayTodos.length-4} more</div>` : ''}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function changeMonth(delta) {
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
+  renderTodos();
+}
+function goToday() {
+  currentMonth = new Date();
+  renderTodos();
+}
+
+function printView() { window.print(); }
+
+function filterTodos(todos) {
+  let items = currentFilter === 'all' ? todos : todos.filter(t => t.category === currentFilter);
+  if (currentTagFilter)
+    items = items.filter(t => t.tags && t.tags.split(',').map(s => s.trim()).includes(currentTagFilter));
+  return items;
 }
 
 // ===== TAGS =====
@@ -472,8 +568,9 @@ function setTagFilter(tag, el) {
 }
 
 function projectColor(name) {
+  if (!name || name === 'Uncategorized') return 'var(--gray-400)';
   const i = allProjects.findIndex(p => p.name === name);
-  return i >= 0 ? PALETTE[i % PALETTE.length] : 'var(--gray-300)';
+  return i >= 0 ? PALETTE[i % PALETTE.length] : 'var(--gray-400)';
 }
 
 function todoCardHtml(t) {
@@ -620,15 +717,42 @@ function renderProjectsModal() {
   if (!allProjects.length) { el.innerHTML = '<p class="empty">No projects yet.</p>'; return; }
   el.innerHTML = allProjects.map((p, i) => `
     <div class="proj-row">
-      <span><span class="proj-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${escHtml(p.name)}</span>
-      <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Remove</button>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <div style="display:flex;flex-direction:column;gap:1px;">
+          <button class="btn btn-ghost btn-sm" ${i===0?'disabled':''} onclick="moveProject('${p.id}',-1)"
+                  style="padding:.05rem .4rem;line-height:1.2;font-size:.75rem;">▲</button>
+          <button class="btn btn-ghost btn-sm" ${i===allProjects.length-1?'disabled':''} onclick="moveProject('${p.id}',1)"
+                  style="padding:.05rem .4rem;line-height:1.2;font-size:.75rem;">▼</button>
+        </div>
+        <span><span class="proj-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${escHtml(p.name)}</span>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}','${escHtml(p.name)}')">Remove</button>
     </div>`).join('');
 }
 
+async function moveProject(id, direction) {
+  const idx = allProjects.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= allProjects.length) return;
+  [allProjects[idx], allProjects[newIdx]] = [allProjects[newIdx], allProjects[idx]];
+  await apiCall({ action: 'update_project_order', order: allProjects.map(p => p.id) });
+  renderProjectsModal();
+  populateFilterBar();
+  populateCategoryDropdown();
+}
+
 async function addProject() {
-  const name = document.getElementById('f-proj-name').value.trim();
+  const name   = document.getElementById('f-proj-name').value.trim();
+  const errEl  = document.getElementById('proj-add-err');
+  errEl.textContent = '';
   if (!name) return;
-  await apiCall({ action: 'add_project', name });
+  if (allProjects.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+    errEl.textContent = 'A project with that name already exists.';
+    return;
+  }
+  const res = await apiCall({ action: 'add_project', name });
+  if (!res.ok) { errEl.textContent = res.error || 'Failed to add project.'; return; }
   document.getElementById('f-proj-name').value = '';
   const pr = await apiCall({ action: 'get_projects' });
   allProjects = pr.data || [];
@@ -638,11 +762,15 @@ async function addProject() {
   renderTodos();
 }
 
-async function deleteProject(id) {
-  if (!confirm('Remove this project?')) return;
+async function deleteProject(id, name) {
+  if (!confirm(`Remove "${name}"?\nExisting todos will be moved to Uncategorized.`)) return;
   await apiCall({ action: 'delete_project', id });
-  const pr = await apiCall({ action: 'get_projects' });
+  const [pr, tr] = await Promise.all([
+    apiCall({ action: 'get_projects' }),
+    apiCall({ action: 'get_todos' })
+  ]);
   allProjects = pr.data || [];
+  allTodos    = tr.data || [];
   renderProjectsModal();
   populateFilterBar();
   populateCategoryDropdown();
