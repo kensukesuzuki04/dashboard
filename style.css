@@ -166,3 +166,19 @@ header h1 { font-size: 1.15rem; }
 .proj-row { display: flex; justify-content: space-between; align-items: center;
             padding: .4rem 0; border-bottom: 1px solid var(--gray-200); }
 .proj-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: .5rem; }
+
+/* Week view */
+.week-view { display: flex; gap: .55rem; overflow-x: auto; padding-bottom: 1rem; }
+.week-day  { flex: 1; min-width: 130px; background: #fff; border-radius: 8px;
+             box-shadow: var(--shadow); }
+.week-day.week-today { border: 2px solid var(--blue); }
+.week-day-header { padding: .45rem .7rem; font-weight: 700; font-size: .82rem;
+                   border-bottom: 1px solid var(--gray-200);
+                   display: flex; justify-content: space-between; align-items: center; }
+.week-date  { font-size: .74rem; color: var(--gray-600); font-weight: 400; }
+.week-cards { padding: .45rem; display: flex; flex-direction: column; gap: .3rem; min-height: 60px; }
+.week-card  { padding: .3rem .45rem; border-radius: 5px; border-left: 3px solid var(--gray-300);
+              cursor: pointer; font-size: .79rem; line-height: 1.35; }
+.week-card:hover { background: var(--gray-100); }
+.week-card.done { opacity: .45; }
+.week-empty { font-size: .75rem; color: var(--gray-500); padding: .2rem; }

@@ -27,6 +27,7 @@
         <span class="view-btn active" onclick="setView('today',this)">Today</span>
         <span class="view-btn"        onclick="setView('list',this)">List</span>
         <span class="view-btn"        onclick="setView('board',this)">Board</span>
+        <span class="view-btn"        onclick="setView('week',this)">Week</span>
       </div>
     </div>
     <div style="display:flex;gap:.4rem;">
@@ -283,7 +284,7 @@ function setView(v, el) {
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   const panel = document.getElementById('panel-todos');
-  panel.classList.toggle('board-mode', v === 'board');
+  panel.classList.toggle('board-mode', v === 'board' || v === 'week');
   document.getElementById('filter-bar').style.display = (v === 'list') ? 'flex' : 'none';
   renderTodos();
 }
@@ -319,6 +320,7 @@ function renderTodos() {
   const el = document.getElementById('todo-content');
   if      (currentView === 'today') renderTodayView(el);
   else if (currentView === 'board') renderBoardView(el);
+  else if (currentView === 'week')  renderWeekView(el);
   else                               renderListView(el);
 }
 
@@ -383,6 +385,43 @@ function renderBoardView(el) {
         </div>
       </div>`;
     }).join('') + '</div></div>';
+}
+
+function renderWeekView(el) {
+  const td  = today();
+  const now = new Date(td + 'T00:00:00');
+  const dow = now.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = '<div class="week-view">';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateStr = d.toISOString().slice(0,10);
+    const isToday = dateStr === td;
+    const dayTodos = allTodos.filter(t => t.due_date === dateStr)
+      .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
+    html += `<div class="week-day${isToday?' week-today':''}">
+      <div class="week-day-header">
+        <span>${DAYS[i]}</span>
+        <span class="week-date">${dateStr.slice(5)}</span>
+      </div>
+      <div class="week-cards">
+        ${dayTodos.length ? dayTodos.map(t => {
+          const done  = t.status === 'done';
+          const color = projectColor(t.category);
+          return `<div class="week-card${done?' done':''}" style="border-left-color:${color}" onclick="openEditTodo('${t.id}')">
+            <div style="${done?'text-decoration:line-through;':''}">${escHtml(t.title)}</div>
+            <span class="badge badge-${t.priority}">${t.priority[0].toUpperCase()}</span>
+          </div>`;
+        }).join('') : '<div class="week-empty">—</div>'}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 function projectColor(name) {
@@ -542,9 +581,10 @@ async function addProject() {
   document.getElementById('f-proj-name').value = '';
   const pr = await apiCall({ action: 'get_projects' });
   allProjects = pr.data || [];
-  renderProjectsModal();
+  closeModal('project-modal');
   populateFilterBar();
   populateCategoryDropdown();
+  renderTodos();
 }
 
 async function deleteProject(id) {
