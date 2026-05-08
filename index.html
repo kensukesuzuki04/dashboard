@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard – Kensuke Suzuki</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <h1>Dashboard</h1>
+    <p class="login-sub">Research · Teaching · Advising</p>
+    <label style="font-size:.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:.35rem;">Password</label>
+    <input type="password" id="pw" placeholder="Enter password" autofocus
+           onkeydown="if(event.key==='Enter') login()">
+    <button class="btn btn-primary" onclick="login()">Sign In</button>
+    <div class="error-msg" id="err"></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+async function login() {
+  const pw = document.getElementById('pw').value;
+  if (!pw) return;
+  document.getElementById('err').textContent = '';
+  const data = await apiCall({ action: 'prof_login', password: pw });
+  if (data.ok) {
+    sessionStorage.setItem('prof_pw', pw);
+    window.location.href = 'professor.html';
+  } else {
+    document.getElementById('err').textContent = 'Incorrect password.';
+  }
+}
+
+// Redirect students with token directly
+const token = new URLSearchParams(window.location.search).get('token');
+if (token) window.location.href = `student.html?token=${token}`;
+</script>
+</body>
+</html>

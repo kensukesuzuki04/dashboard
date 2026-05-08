@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advising Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1 id="page-title">Advising Dashboard</h1>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-panel="todos"    onclick="switchTab(this)">My Todos</div>
+  <div class="tab"        data-panel="meetings" onclick="switchTab(this)">Meeting Notes</div>
+</div>
+
+<!-- MY TODOS -->
+<div class="panel active" id="panel-todos">
+  <div class="sec-header">
+    <h2>Todos</h2>
+    <button class="btn btn-primary" onclick="openModal('todo-modal')">+ Add Todo</button>
+  </div>
+  <div class="filter-bar">
+    <span class="chip active" onclick="setFilter('all',this)">All</span>
+    <span class="chip" onclick="setFilter('student',this)">Mine</span>
+    <span class="chip" onclick="setFilter('prof',this)">Professor</span>
+    <span class="chip" onclick="setFilter('both',this)">Both</span>
+  </div>
+  <div class="todo-list" id="todo-list"><p class="empty">Loading…</p></div>
+</div>
+
+<!-- MEETING NOTES -->
+<div class="panel" id="panel-meetings">
+  <h2 style="margin-bottom:1rem;font-size:1.05rem;">Meeting Notes</h2>
+  <div id="meeting-list"><p class="empty">Loading…</p></div>
+</div>
+
+<!-- MODAL: Add Todo -->
+<div class="modal-overlay" id="todo-modal" onclick="overlayClose(event,'todo-modal')">
+  <div class="modal">
+    <h3>Add Todo</h3>
+    <div class="form-group"><label>Title *</label>
+      <input type="text" id="f-title"></div>
+    <div class="form-group"><label>Due Date</label>
+      <input type="date" id="f-due"></div>
+    <div class="form-group"><label>Notes</label>
+      <textarea id="f-desc"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTodo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+const token = new URLSearchParams(window.location.search).get('token');
+if (!token) { document.body.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;">Invalid access link.</div>'; }
+
+let allTodos = [], filterVal = 'all';
+
+async function init() {
+  // Verify token by loading todos
+  const res = await apiCall({ action: 'get_advising_todos' });
+  if (!res.ok) { document.body.innerHTML = '<div style="padding:3rem;text-align:center;color:#e53e3e;">Access denied.</div>'; return; }
+  allTodos = res.data || [];
+  renderTodos();
+  loadMeetings();
+}
+
+// ===== TABS =====
+function switchTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + el.dataset.panel).classList.add('active');
+}
+
+// ===== TODOS =====
+function setFilter(f, el) {
+  filterVal = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTodos();
+}
+
+function renderTodos() {
+  const el = document.getElementById('todo-list');
+  let items = filterVal === 'all' ? allTodos : allTodos.filter(t => t.assigned_to === filterVal);
+  items = items.sort((a,b) => {
+    if (a.status==='done' && b.status!=='done') return 1;
+    if (b.status==='done' && a.status!=='done') return -1;
+    return (a.due_date||'').localeCompare(b.due_date||'');
+  });
+  if (!items.length) { el.innerHTML = '<p class="empty">No todos.</p>'; return; }
+  el.innerHTML = items.map(t => `
+    <div class="card todo-card cat-advising ${t.status==='done'?'done':''}">
+      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''}
+             onchange="toggleTodo('${t.id}',this.checked)"
+             ${t.assigned_to==='prof'?'disabled':''}>
+      <div class="todo-body">
+        <div class="todo-title">${escHtml(t.title)}</div>
+        <div class="todo-meta">
+          Assigned to: <strong>${t.assigned_to}</strong>
+          ${t.due_date?' · Due: '+t.due_date:''}
+        </div>
+        ${t.description?`<div class="todo-desc">${escHtml(t.description)}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+async function saveTodo() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) return alert('Title required.');
+  await apiCall({ action: 'add_advising_todo', title,
+    description: document.getElementById('f-desc').value,
+    due_date: document.getElementById('f-due').value,
+    assigned_to: 'student' });
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-desc').value  = '';
+  document.getElementById('f-due').value   = '';
+  closeModal('todo-modal');
+  const res = await apiCall({ action: 'get_advising_todos' });
+  allTodos = res.data || [];
+  renderTodos();
+}
+
+async function toggleTodo(id, done) {
+  await apiCall({ action: 'update_advising_todo', id, status: done ? 'done' : 'pending' });
+  const res = await apiCall({ action: 'get_advising_todos' });
+  allTodos = res.data || [];
+  renderTodos();
+}
+
+// ===== MEETINGS =====
+async function loadMeetings() {
+  const res = await apiCall({ action: 'get_meetings' });
+  const items = (res.data||[]).sort((a,b)=>b.date.localeCompare(a.date));
+  const el = document.getElementById('meeting-list');
+  if (!items.length) { el.innerHTML = '<p class="empty">No meeting notes yet.</p>'; return; }
+  el.innerHTML = items.map(m => `
+    <div class="note-card">
+      <div class="note-date">📅 ${m.date}</div>
+      <div class="note-text">${escHtml(m.notes)}</div>
+      ${m.action_items?`<div class="note-actions-label"><strong>Actions:</strong> ${escHtml(m.action_items)}</div>`:''}
+    </div>`).join('');
+}
+
+// ===== UTILS =====
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function overlayClose(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
+
+if (token) init();
+</script>
+</body>
+</html>

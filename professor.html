@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Professor Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Research &amp; Teaching Dashboard</h1>
+  <button class="logout-btn" onclick="logout()">Sign out</button>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-panel="todos"    onclick="switchTab(this)">Todos</div>
+  <div class="tab"        data-panel="advising" onclick="switchTab(this)">Advising</div>
+  <div class="tab"        data-panel="students" onclick="switchTab(this)">Students</div>
+</div>
+
+<!-- TODOS -->
+<div class="panel active" id="panel-todos">
+  <div class="sec-header">
+    <h2>Todo List</h2>
+    <button class="btn btn-primary" onclick="openModal('todo-modal'); resetTodoForm()">+ Add Todo</button>
+  </div>
+  <div class="filter-bar">
+    <span class="chip active" onclick="setFilter('all',this)">All</span>
+    <span class="chip" onclick="setFilter('summer',this)">Summer</span>
+    <span class="chip" onclick="setFilter('research',this)">Research</span>
+    <span class="chip" onclick="setFilter('teaching',this)">Teaching</span>
+    <span class="chip" onclick="setFilter('advising',this)">Advising</span>
+  </div>
+  <div class="todo-list" id="todo-list"><p class="empty">Loading…</p></div>
+</div>
+
+<!-- ADVISING -->
+<div class="panel" id="panel-advising">
+  <div class="sec-header">
+    <h2>Advising</h2>
+    <select id="sel-student" onchange="loadAdvisingData()"
+            style="padding:.5rem .8rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.9rem;">
+      <option value="">— Select Student —</option>
+    </select>
+  </div>
+
+  <div style="margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;">
+    <h3 style="font-size:.95rem;">Todos</h3>
+    <button class="btn btn-primary btn-sm" onclick="openAddAdvisingTodo()">+ Add</button>
+  </div>
+  <div class="todo-list" id="adv-todo-list"><p class="empty">Select a student.</p></div>
+
+  <div style="margin:1.5rem 0 .6rem;display:flex;align-items:center;justify-content:space-between;">
+    <h3 style="font-size:.95rem;">Meeting Notes</h3>
+    <button class="btn btn-primary btn-sm" onclick="openAddMeeting()">+ Add</button>
+  </div>
+  <div id="meeting-list"></div>
+</div>
+
+<!-- STUDENTS -->
+<div class="panel" id="panel-students">
+  <div class="sec-header">
+    <h2>PhD Students</h2>
+    <button class="btn btn-primary" onclick="openModal('student-modal')">+ Add Student</button>
+  </div>
+  <div id="student-list"><p class="empty">Loading…</p></div>
+</div>
+
+<!-- MODAL: Todo -->
+<div class="modal-overlay" id="todo-modal" onclick="overlayClose(event,'todo-modal')">
+  <div class="modal">
+    <h3 id="todo-modal-title">Add Todo</h3>
+    <input type="hidden" id="f-todo-id">
+    <div class="form-group"><label>Title *</label>
+      <input type="text" id="f-title" placeholder="Task title"></div>
+    <div class="form-group"><label>Category</label>
+      <select id="f-cat">
+        <option value="summer">Summer</option>
+        <option value="research">Research</option>
+        <option value="teaching">Teaching</option>
+        <option value="advising">Advising</option>
+      </select></div>
+    <div class="form-group"><label>Due Date → added to Google Calendar</label>
+      <input type="date" id="f-due"></div>
+    <div class="form-group"><label>Priority</label>
+      <select id="f-pri">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select></div>
+    <div class="form-group"><label>Notes</label>
+      <textarea id="f-desc"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTodo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Student -->
+<div class="modal-overlay" id="student-modal" onclick="overlayClose(event,'student-modal')">
+  <div class="modal">
+    <h3>Add Student</h3>
+    <div class="form-group"><label>Student ID *</label>
+      <input type="text" id="f-sid" placeholder="e.g. jdoe2025"></div>
+    <div class="form-group"><label>Name *</label>
+      <input type="text" id="f-sname"></div>
+    <div class="form-group"><label>Email</label>
+      <input type="email" id="f-semail"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStudent()">Add &amp; Generate Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Advising Todo -->
+<div class="modal-overlay" id="adv-todo-modal" onclick="overlayClose(event,'adv-todo-modal')">
+  <div class="modal">
+    <h3>Add Advising Todo</h3>
+    <div class="form-group"><label>Title *</label>
+      <input type="text" id="f-at-title"></div>
+    <div class="form-group"><label>Assigned To</label>
+      <select id="f-at-assign">
+        <option value="student">Student</option>
+        <option value="prof">Professor</option>
+        <option value="both">Both</option>
+      </select></div>
+    <div class="form-group"><label>Due Date</label>
+      <input type="date" id="f-at-due"></div>
+    <div class="form-group"><label>Notes</label>
+      <textarea id="f-at-desc"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('adv-todo-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAdvisingTodo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Meeting Note -->
+<div class="modal-overlay" id="meeting-modal" onclick="overlayClose(event,'meeting-modal')">
+  <div class="modal">
+    <h3>Add Meeting Note</h3>
+    <div class="form-group"><label>Date</label>
+      <input type="date" id="f-m-date"></div>
+    <div class="form-group"><label>Notes</label>
+      <textarea id="f-m-notes" style="min-height:110px;"></textarea></div>
+    <div class="form-group"><label>Action Items</label>
+      <textarea id="f-m-actions"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('meeting-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMeeting()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+const pw = sessionStorage.getItem('prof_pw');
+if (!pw) window.location.href = 'index.html';
+
+let allTodos = [], allStudents = [], currentFilter = 'all';
+
+// ===== TABS =====
+function switchTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  const p = document.getElementById('panel-' + el.dataset.panel);
+  p.classList.add('active');
+  if (el.dataset.panel === 'todos')    loadTodos();
+  if (el.dataset.panel === 'students') loadStudents();
+  if (el.dataset.panel === 'advising') { loadStudents(); }
+}
+
+// ===== TODOS =====
+async function loadTodos() {
+  const res = await apiCall({ action: 'get_todos' });
+  allTodos = res.data || [];
+  renderTodos();
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTodos();
+}
+
+function renderTodos() {
+  const el = document.getElementById('todo-list');
+  let items = currentFilter === 'all' ? allTodos : allTodos.filter(t => t.category === currentFilter);
+  items = items.sort((a,b) => {
+    if (a.status==='done' && b.status!=='done') return 1;
+    if (b.status==='done' && a.status!=='done') return -1;
+    return ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1);
+  });
+  if (!items.length) { el.innerHTML = '<p class="empty">No todos.</p>'; return; }
+  el.innerHTML = items.map(t => `
+    <div class="card todo-card cat-${t.category} ${t.status==='done'?'done':''}">
+      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''}
+             onchange="toggleTodo('${t.id}',this.checked)">
+      <div class="todo-body">
+        <div class="todo-title">${escHtml(t.title)}</div>
+        <div class="todo-meta">
+          <span class="badge badge-${t.priority}">${t.priority}</span>
+          ${escHtml(t.category)}${t.due_date?' · '+t.due_date:''}${t.calendar_event_id?' 📅':''}
+        </div>
+        ${t.description?`<div class="todo-desc">${escHtml(t.description)}</div>`:''}
+      </div>
+      <div class="todo-actions">
+        <button class="btn btn-ghost btn-sm" onclick='openEditTodo(${JSON.stringify(t)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="delTodo('${t.id}')">Del</button>
+      </div>
+    </div>`).join('');
+}
+
+function resetTodoForm() {
+  ['f-todo-id','f-title','f-desc','f-due'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f-cat').value = 'summer';
+  document.getElementById('f-pri').value = 'medium';
+  document.getElementById('todo-modal-title').textContent = 'Add Todo';
+}
+
+function openEditTodo(t) {
+  document.getElementById('f-todo-id').value = t.id;
+  document.getElementById('f-title').value   = t.title;
+  document.getElementById('f-desc').value    = t.description || '';
+  document.getElementById('f-due').value     = t.due_date || '';
+  document.getElementById('f-cat').value     = t.category;
+  document.getElementById('f-pri').value     = t.priority;
+  document.getElementById('todo-modal-title').textContent = 'Edit Todo';
+  openModal('todo-modal');
+}
+
+async function saveTodo() {
+  const id    = document.getElementById('f-todo-id').value;
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) return alert('Title is required.');
+  const payload = { title, category: document.getElementById('f-cat').value,
+    due_date: document.getElementById('f-due').value,
+    priority: document.getElementById('f-pri').value,
+    description: document.getElementById('f-desc').value };
+  await apiCall({ action: id ? 'update_todo' : 'add_todo', id: id||undefined, ...payload });
+  closeModal('todo-modal');
+  loadTodos();
+}
+
+async function toggleTodo(id, done) {
+  await apiCall({ action: 'update_todo', id, status: done ? 'done' : 'pending' });
+  loadTodos();
+}
+
+async function delTodo(id) {
+  if (!confirm('Delete this todo?')) return;
+  await apiCall({ action: 'delete_todo', id });
+  loadTodos();
+}
+
+// ===== STUDENTS =====
+async function loadStudents() {
+  const res = await apiCall({ action: 'get_students' });
+  allStudents = res.data || [];
+  renderStudents();
+  const sel = document.getElementById('sel-student');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Select Student —</option>' +
+    allStudents.map(s => `<option value="${s.student_id}" ${s.student_id===cur?'selected':''}>${escHtml(s.name)}</option>`).join('');
+}
+
+function renderStudents() {
+  const el = document.getElementById('student-list');
+  if (!allStudents.length) { el.innerHTML = '<p class="empty">No students yet.</p>'; return; }
+  const base = location.origin + location.pathname.replace('professor.html','') + 'index.html';
+  el.innerHTML = allStudents.map(s => `
+    <div class="card student-card" style="margin-bottom:.55rem;">
+      <div>
+        <div class="student-name">${escHtml(s.name)}
+          <span style="font-weight:400;color:var(--gray-600);font-size:.83rem;">(${escHtml(s.student_id)})</span>
+        </div>
+        <div class="student-meta">
+          Link: <span class="token-box">${base}?token=${s.token}</span>
+          <button class="btn btn-ghost btn-sm" style="margin-left:.4rem;"
+                  onclick="navigator.clipboard.writeText('${base}?token=${s.token}').then(()=>alert('Copied!'))">Copy</button>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="delStudent('${s.student_id}')">Remove</button>
+    </div>`).join('');
+}
+
+async function saveStudent() {
+  const sid  = document.getElementById('f-sid').value.trim();
+  const name = document.getElementById('f-sname').value.trim();
+  if (!sid||!name) return alert('ID and Name are required.');
+  const res = await apiCall({ action: 'add_student', student_id: sid, name,
+                               email: document.getElementById('f-semail').value });
+  if (res.ok) {
+    closeModal('student-modal');
+    await loadStudents();
+    const base = location.origin + location.pathname.replace('professor.html','') + 'index.html';
+    alert(`Student added!\nShare this link:\n${base}?token=${res.token}`);
+  }
+}
+
+async function delStudent(sid) {
+  if (!confirm('Remove student?')) return;
+  await apiCall({ action: 'delete_student', student_id: sid });
+  loadStudents();
+}
+
+// ===== ADVISING =====
+async function loadAdvisingData() {
+  const sid = document.getElementById('sel-student').value;
+  if (!sid) return;
+  const [tr, mr] = await Promise.all([
+    apiCall({ action: 'get_advising_todos', student_id: sid }),
+    apiCall({ action: 'get_meetings', student_id: sid })
+  ]);
+  renderAdvTodos(tr.data||[]);
+  renderMeetings(mr.data||[]);
+}
+
+function renderAdvTodos(items) {
+  const el = document.getElementById('adv-todo-list');
+  if (!items.length) { el.innerHTML = '<p class="empty">No todos.</p>'; return; }
+  el.innerHTML = items.map(t => `
+    <div class="card todo-card cat-advising ${t.status==='done'?'done':''}">
+      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''}
+             onchange="toggleAdvTodo('${t.id}',this.checked)">
+      <div class="todo-body">
+        <div class="todo-title">${escHtml(t.title)}</div>
+        <div class="todo-meta">Assigned: ${t.assigned_to}${t.due_date?' · '+t.due_date:''}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleAdvTodo(id, done) {
+  await apiCall({ action: 'update_advising_todo', id, status: done ? 'done' : 'pending' });
+  loadAdvisingData();
+}
+
+function renderMeetings(items) {
+  const el = document.getElementById('meeting-list');
+  if (!items.length) { el.innerHTML = '<p class="empty">No meeting notes.</p>'; return; }
+  el.innerHTML = items.sort((a,b)=>b.date.localeCompare(a.date)).map(m => `
+    <div class="note-card">
+      <div class="note-date">📅 ${m.date}</div>
+      <div class="note-text">${escHtml(m.notes)}</div>
+      ${m.action_items?`<div class="note-actions-label"><strong>Actions:</strong> ${escHtml(m.action_items)}</div>`:''}
+    </div>`).join('');
+}
+
+function openAddAdvisingTodo() {
+  if (!document.getElementById('sel-student').value) return alert('Select a student first.');
+  openModal('adv-todo-modal');
+}
+
+async function saveAdvisingTodo() {
+  const sid = document.getElementById('sel-student').value;
+  await apiCall({ action: 'add_advising_todo', student_id: sid,
+    title: document.getElementById('f-at-title').value,
+    description: document.getElementById('f-at-desc').value,
+    due_date: document.getElementById('f-at-due').value,
+    assigned_to: document.getElementById('f-at-assign').value });
+  closeModal('adv-todo-modal');
+  loadAdvisingData();
+}
+
+function openAddMeeting() {
+  if (!document.getElementById('sel-student').value) return alert('Select a student first.');
+  document.getElementById('f-m-date').value = today();
+  openModal('meeting-modal');
+}
+
+async function saveMeeting() {
+  const sid = document.getElementById('sel-student').value;
+  await apiCall({ action: 'add_meeting', student_id: sid,
+    date: document.getElementById('f-m-date').value,
+    notes: document.getElementById('f-m-notes').value,
+    action_items: document.getElementById('f-m-actions').value });
+  closeModal('meeting-modal');
+  loadAdvisingData();
+}
+
+// ===== MODAL UTILS =====
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function overlayClose(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
+function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+loadTodos();
+</script>
+</body>
+</html>
