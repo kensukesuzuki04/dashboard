@@ -24,13 +24,18 @@
 async function login() {
   const pw = document.getElementById('pw').value;
   if (!pw) return;
-  document.getElementById('err').textContent = '';
-  const data = await apiCall({ action: 'prof_login', password: pw });
-  if (data.ok) {
-    sessionStorage.setItem('prof_pw', pw);
-    window.location.href = 'professor.html';
-  } else {
-    document.getElementById('err').textContent = 'Incorrect password.';
+  const err = document.getElementById('err');
+  err.textContent = 'Signing in…';
+  try {
+    const data = await apiCall({ action: 'prof_login', password: pw });
+    if (data.ok) {
+      sessionStorage.setItem('prof_pw', pw);
+      window.location.href = 'professor.html';
+    } else {
+      err.textContent = 'Incorrect password.';
+    }
+  } catch (e) {
+    err.textContent = 'Connection error: ' + e.message;
   }
 }
 
