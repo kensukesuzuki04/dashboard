@@ -3,53 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Advising Dashboard</title>
+<title>Student Portal</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1 id="page-title">Advising Dashboard</h1>
-</header>
 
-<div class="tabs">
-  <div class="tab active" data-panel="todos"    onclick="switchTab(this)">My Todos</div>
-  <div class="tab"        data-panel="meetings" onclick="switchTab(this)">Meeting Notes</div>
+<!-- LOGIN -->
+<div id="login-page" class="login-wrap">
+  <div class="login-card">
+    <h1>Student Portal</h1>
+    <p class="login-sub">Advising Dashboard – Kensuke Suzuki</p>
+    <input type="email"    id="s-email" placeholder="Email address">
+    <input type="password" id="s-pw"    placeholder="Password (initial: 1234)"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    <div class="error-msg" id="s-err"></div>
+  </div>
 </div>
 
-<!-- MY TODOS -->
-<div class="panel active" id="panel-todos">
-  <div class="sec-header">
-    <h2>Todos</h2>
-    <button class="btn btn-primary" onclick="openModal('todo-modal')">+ Add Todo</button>
-  </div>
-  <div class="filter-bar">
-    <span class="chip active" onclick="setFilter('all',this)">All</span>
-    <span class="chip" onclick="setFilter('student',this)">Mine</span>
-    <span class="chip" onclick="setFilter('prof',this)">Professor</span>
-    <span class="chip" onclick="setFilter('both',this)">Both</span>
-  </div>
-  <div class="todo-list" id="todo-list"><p class="empty">Loading…</p></div>
-</div>
+<!-- DASHBOARD -->
+<div id="dashboard-page" style="display:none;">
+  <header>
+    <h1 id="s-greeting">My Dashboard</h1>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </header>
 
-<!-- MEETING NOTES -->
-<div class="panel" id="panel-meetings">
-  <h2 style="margin-bottom:1rem;font-size:1.05rem;">Meeting Notes</h2>
-  <div id="meeting-list"><p class="empty">Loading…</p></div>
+  <div class="tabs">
+    <div class="tab active" data-panel="todos"    onclick="switchTab(this)">My Todos</div>
+    <div class="tab"        data-panel="meetings" onclick="switchTab(this)">Meeting Notes</div>
+    <div class="tab"        data-panel="settings" onclick="switchTab(this)">Settings</div>
+  </div>
+
+  <!-- MY TODOS -->
+  <div class="panel active" id="panel-todos">
+    <div class="sec-header">
+      <h2>My Todos</h2>
+      <button class="btn btn-primary" onclick="openModal('s-todo-modal')">+ Add Todo</button>
+    </div>
+    <div class="filter-bar">
+      <span class="chip active" onclick="setSFilter('all',this)">All</span>
+      <span class="chip" onclick="setSFilter('pending',this)">Pending</span>
+      <span class="chip" onclick="setSFilter('done',this)">Done</span>
+    </div>
+    <div class="todo-list" id="s-todo-list"><p class="empty">Loading…</p></div>
+  </div>
+
+  <!-- MEETING NOTES -->
+  <div class="panel" id="panel-meetings">
+    <h2 style="margin-bottom:1rem;font-size:1.05rem;">Meeting Notes</h2>
+    <div id="s-meeting-list"><p class="empty">Loading…</p></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="panel" id="panel-settings">
+    <h2 style="margin-bottom:1.5rem;font-size:1.05rem;">Change Password</h2>
+    <div style="max-width:340px;">
+      <div class="form-group">
+        <label>Current Password</label>
+        <input type="password" id="pw-old">
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="pw-new">
+      </div>
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <input type="password" id="pw-confirm">
+      </div>
+      <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+      <div class="error-msg" id="pw-msg"></div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: Add Todo -->
-<div class="modal-overlay" id="todo-modal" onclick="overlayClose(event,'todo-modal')">
+<div class="modal-overlay" id="s-todo-modal" onclick="overlayClose(event,'s-todo-modal')">
   <div class="modal">
     <h3>Add Todo</h3>
     <div class="form-group"><label>Title *</label>
-      <input type="text" id="f-title"></div>
+      <input type="text" id="sf-title"></div>
     <div class="form-group"><label>Due Date</label>
-      <input type="date" id="f-due"></div>
+      <input type="date" id="sf-due"></div>
     <div class="form-group"><label>Notes</label>
-      <textarea id="f-desc"></textarea></div>
+      <textarea id="sf-desc"></textarea></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTodo()">Save</button>
+      <button class="btn btn-ghost" onclick="closeModal('s-todo-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStudentTodo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Complete with note -->
+<div class="modal-overlay" id="s-complete-modal" onclick="overlayClose(event,'s-complete-modal')">
+  <div class="modal" style="width:360px;">
+    <h3>Mark as Complete</h3>
+    <input type="hidden" id="sf-complete-id">
+    <div class="form-group">
+      <label>Completion note (optional)</label>
+      <textarea id="sf-complete-note" placeholder="e.g. Submitted draft on time…" style="min-height:60px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cancelSComplete()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSCompletion()">Mark Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Extend due date -->
+<div class="modal-overlay" id="s-extend-modal" onclick="overlayClose(event,'s-extend-modal')">
+  <div class="modal" style="width:300px;">
+    <h3>Extend Due Date</h3>
+    <input type="hidden" id="sf-extend-id">
+    <div class="form-group">
+      <label>New Due Date</label>
+      <input type="date" id="sf-extend-date">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('s-extend-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSExtend()">Save</button>
     </div>
   </div>
 </div>
@@ -57,18 +128,52 @@
 <script src="config.js"></script>
 <script src="api.js"></script>
 <script>
-const token = new URLSearchParams(window.location.search).get('token');
-if (!token) { document.body.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;">Invalid access link.</div>'; }
+let allSTodos = [], sFilter = 'all';
 
-let allTodos = [], filterVal = 'all';
+function checkSession() {
+  const em = sessionStorage.getItem('student_email');
+  const sp = sessionStorage.getItem('student_pw');
+  const nm = sessionStorage.getItem('student_name');
+  if (em && sp) { showDashboard(nm || em); return true; }
+  return false;
+}
 
-async function init() {
-  // Verify token by loading todos
-  const res = await apiCall({ action: 'get_advising_todos' });
-  if (!res.ok) { document.body.innerHTML = '<div style="padding:3rem;text-align:center;color:#e53e3e;">Access denied.</div>'; return; }
-  allTodos = res.data || [];
-  renderTodos();
-  loadMeetings();
+async function doLogin() {
+  const email = document.getElementById('s-email').value.trim();
+  const pw    = document.getElementById('s-pw').value;
+  const err   = document.getElementById('s-err');
+  if (!email || !pw) return;
+  err.textContent = 'Signing in…';
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'student_login', email, student_password: pw })
+    }).then(r => r.json());
+    if (res.ok) {
+      sessionStorage.setItem('student_email', res.email);
+      sessionStorage.setItem('student_pw',    pw);
+      sessionStorage.setItem('student_name',  res.name);
+      showDashboard(res.name);
+    } else {
+      err.textContent = 'Incorrect email or password.';
+    }
+  } catch(e) {
+    err.textContent = 'Connection error: ' + e.message;
+  }
+}
+
+function showDashboard(name) {
+  document.getElementById('login-page').style.display     = 'none';
+  document.getElementById('dashboard-page').style.display = 'block';
+  document.getElementById('s-greeting').textContent = name + "'s Dashboard";
+  loadStudentTodos();
+}
+
+function logout() {
+  sessionStorage.clear();
+  document.getElementById('login-page').style.display     = 'flex';
+  document.getElementById('dashboard-page').style.display = 'none';
 }
 
 // ===== TABS =====
@@ -77,69 +182,119 @@ function switchTab(el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('panel-' + el.dataset.panel).classList.add('active');
+  if (el.dataset.panel === 'meetings') loadMeetings();
 }
 
 // ===== TODOS =====
-function setFilter(f, el) {
-  filterVal = f;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderTodos();
+async function loadStudentTodos() {
+  const res = await apiCall({ action: 'get_advising_todos' });
+  allSTodos = res.data || [];
+  renderSTodos();
 }
 
-function renderTodos() {
-  const el = document.getElementById('todo-list');
-  let items = filterVal === 'all' ? allTodos : allTodos.filter(t => t.assigned_to === filterVal);
+function setSFilter(f, el) {
+  sFilter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderSTodos();
+}
+
+function renderSTodos() {
+  const el = document.getElementById('s-todo-list');
+  let items = sFilter === 'pending' ? allSTodos.filter(t => t.status !== 'done') :
+              sFilter === 'done'    ? allSTodos.filter(t => t.status === 'done')  :
+                                      allSTodos;
   items = items.sort((a,b) => {
     if (a.status==='done' && b.status!=='done') return 1;
     if (b.status==='done' && a.status!=='done') return -1;
     return (a.due_date||'').localeCompare(b.due_date||'');
   });
   if (!items.length) { el.innerHTML = '<p class="empty">No todos.</p>'; return; }
-  el.innerHTML = items.map(t => `
-    <div class="card todo-card cat-advising ${t.status==='done'?'done':''}">
-      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''}
-             onchange="toggleTodo('${t.id}',this.checked)"
-             ${t.assigned_to==='prof'?'disabled':''}>
-      <div class="todo-body">
-        <div class="todo-title">${escHtml(t.title)}</div>
-        <div class="todo-meta">
-          Assigned to: <strong>${t.assigned_to}</strong>
-          ${t.due_date?' · Due: '+t.due_date:''}
+  const td = today();
+  el.innerHTML = items.map(t => {
+    const done  = t.status === 'done';
+    const isOwn = t.assigned_to !== 'prof';
+    const past  = t.due_date && t.due_date < td && !done;
+    return `
+      <div class="card todo-card cat-advising ${done?'done':''}">
+        <input type="checkbox" class="todo-check" ${done?'checked':''} ${!isOwn?'disabled':''}
+               onchange="onCheckSTodo('${t.id}',this.checked,this)">
+        <div class="todo-body">
+          <div class="todo-title" style="${done?'text-decoration:line-through':''}${past?';color:var(--red)':''}">${escHtml(t.title)}</div>
+          <div class="todo-meta">
+            ${t.due_date?`📅 ${t.due_date}${past?' ⚠':''} &nbsp;`:''}
+            ${t.assigned_to==='prof'?'<span style="font-size:.74rem;color:var(--blue);">👨‍🏫 Prof</span>':'<span style="font-size:.74rem;color:var(--gray-600);">👤 You</span>'}
+          </div>
+          ${t.description?`<div class="todo-desc">${escHtml(t.description)}</div>`:''}
+          ${done && t.completion_note?`<div class="todo-desc" style="color:#276749;margin-top:.3rem;">✓ ${escHtml(t.completion_note)}</div>`:''}
+          ${t.due_date && isOwn && !done?`<a href="${gcalLink(t.title, t.due_date)}" target="_blank" class="gcal-link">📅 Add to Google Calendar</a>`:''}
         </div>
-        ${t.description?`<div class="todo-desc">${escHtml(t.description)}</div>`:''}
-      </div>
-    </div>`).join('');
+        ${isOwn && !done?`
+        <div class="todo-actions">
+          <button class="btn btn-ghost btn-sm" title="Extend due date" onclick="openSExtend('${t.id}','${t.due_date||''}')">⏱</button>
+        </div>`:''}
+      </div>`;
+  }).join('');
 }
 
-async function saveTodo() {
-  const title = document.getElementById('f-title').value.trim();
-  if (!title) return alert('Title required.');
-  await apiCall({ action: 'add_advising_todo', title,
-    description: document.getElementById('f-desc').value,
-    due_date: document.getElementById('f-due').value,
-    assigned_to: 'student' });
-  document.getElementById('f-title').value = '';
-  document.getElementById('f-desc').value  = '';
-  document.getElementById('f-due').value   = '';
-  closeModal('todo-modal');
-  const res = await apiCall({ action: 'get_advising_todos' });
-  allTodos = res.data || [];
-  renderTodos();
+function onCheckSTodo(id, checked, cb) {
+  if (checked) {
+    document.getElementById('sf-complete-id').value   = id;
+    document.getElementById('sf-complete-note').value = '';
+    openModal('s-complete-modal');
+    cb.checked = false;
+  } else {
+    apiCall({ action: 'update_advising_todo', id, status: 'pending', completion_note: '' })
+      .then(loadStudentTodos);
+  }
 }
 
-async function toggleTodo(id, done) {
-  await apiCall({ action: 'update_advising_todo', id, status: done ? 'done' : 'pending' });
-  const res = await apiCall({ action: 'get_advising_todos' });
-  allTodos = res.data || [];
-  renderTodos();
+function cancelSComplete() { closeModal('s-complete-modal'); }
+
+async function saveSCompletion() {
+  const id   = document.getElementById('sf-complete-id').value;
+  const note = document.getElementById('sf-complete-note').value.trim();
+  await apiCall({ action: 'update_advising_todo', id, status: 'done', completion_note: note });
+  closeModal('s-complete-modal');
+  loadStudentTodos();
+}
+
+function openSExtend(id, current) {
+  document.getElementById('sf-extend-id').value  = id;
+  document.getElementById('sf-extend-date').value = current;
+  openModal('s-extend-modal');
+}
+
+async function saveSExtend() {
+  const id   = document.getElementById('sf-extend-id').value;
+  const date = document.getElementById('sf-extend-date').value;
+  await apiCall({ action: 'update_advising_todo', id, due_date: date });
+  closeModal('s-extend-modal');
+  loadStudentTodos();
+}
+
+async function saveStudentTodo() {
+  const title = document.getElementById('sf-title').value.trim();
+  if (!title) return alert('Title is required.');
+  await apiCall({
+    action:      'add_advising_todo',
+    title,
+    description: document.getElementById('sf-desc').value,
+    due_date:    document.getElementById('sf-due').value,
+    assigned_to: 'student'
+  });
+  document.getElementById('sf-title').value = '';
+  document.getElementById('sf-desc').value  = '';
+  document.getElementById('sf-due').value   = '';
+  closeModal('s-todo-modal');
+  loadStudentTodos();
 }
 
 // ===== MEETINGS =====
 async function loadMeetings() {
-  const res = await apiCall({ action: 'get_meetings' });
-  const items = (res.data||[]).sort((a,b)=>b.date.localeCompare(a.date));
-  const el = document.getElementById('meeting-list');
+  const res   = await apiCall({ action: 'get_meetings' });
+  const items = (res.data||[]).sort((a,b) => b.date.localeCompare(a.date));
+  const el    = document.getElementById('s-meeting-list');
   if (!items.length) { el.innerHTML = '<p class="empty">No meeting notes yet.</p>'; return; }
   el.innerHTML = items.map(m => `
     <div class="note-card">
@@ -149,12 +304,37 @@ async function loadMeetings() {
     </div>`).join('');
 }
 
+// ===== SETTINGS =====
+async function changePassword() {
+  const oldPw  = document.getElementById('pw-old').value;
+  const newPw  = document.getElementById('pw-new').value;
+  const confPw = document.getElementById('pw-confirm').value;
+  const msg    = document.getElementById('pw-msg');
+  msg.style.color = 'var(--red)';
+  if (!oldPw || !newPw) { msg.textContent = 'Fill in all fields.'; return; }
+  if (newPw !== confPw) { msg.textContent = 'New passwords do not match.'; return; }
+  if (oldPw !== sessionStorage.getItem('student_pw')) {
+    msg.textContent = 'Current password is incorrect.'; return;
+  }
+  const res = await apiCall({ action: 'change_password', new_password: newPw });
+  if (res.ok) {
+    sessionStorage.setItem('student_pw', newPw);
+    msg.style.color = '#276749';
+    msg.textContent = 'Password changed successfully.';
+    document.getElementById('pw-old').value     = '';
+    document.getElementById('pw-new').value     = '';
+    document.getElementById('pw-confirm').value = '';
+  } else {
+    msg.textContent = 'Error: ' + (res.error || 'Unknown');
+  }
+}
+
 // ===== UTILS =====
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
 
-if (token) init();
+checkSession();
 </script>
 </body>
 </html>

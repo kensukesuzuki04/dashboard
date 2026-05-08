@@ -39,9 +39,7 @@ async function login() {
   }
 }
 
-// Redirect students with token directly
-const token = new URLSearchParams(window.location.search).get('token');
-if (token) window.location.href = `student.html?token=${token}`;
+// Students go directly to student.html
 </script>
 </body>
 </html>

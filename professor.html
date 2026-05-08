@@ -18,23 +18,28 @@
   <div class="tab"        data-panel="students" onclick="switchTab(this)">Students</div>
 </div>
 
-<!-- TODOS -->
+<!-- ===== TODOS ===== -->
 <div class="panel active" id="panel-todos">
-  <div class="sec-header">
-    <h2>Todo List</h2>
-    <button class="btn btn-primary" onclick="openModal('todo-modal'); resetTodoForm()">+ Add Todo</button>
+  <div class="sec-header" style="flex-wrap:wrap;gap:.5rem;">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <h2>Todo List</h2>
+      <div class="view-toggle">
+        <span class="view-btn active" onclick="setView('today',this)">Today</span>
+        <span class="view-btn"        onclick="setView('list',this)">List</span>
+        <span class="view-btn"        onclick="setView('board',this)">Board</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:.4rem;">
+      <button class="btn btn-ghost" onclick="openProjectModal()">⚙ Projects</button>
+      <button class="btn btn-ghost" onclick="openModal('bulk-modal')">📢 Bulk Assign</button>
+      <button class="btn btn-primary" onclick="openAddTodo()">+ Add Todo</button>
+    </div>
   </div>
-  <div class="filter-bar">
-    <span class="chip active" onclick="setFilter('all',this)">All</span>
-    <span class="chip" onclick="setFilter('summer',this)">Summer</span>
-    <span class="chip" onclick="setFilter('research',this)">Research</span>
-    <span class="chip" onclick="setFilter('teaching',this)">Teaching</span>
-    <span class="chip" onclick="setFilter('advising',this)">Advising</span>
-  </div>
-  <div class="todo-list" id="todo-list"><p class="empty">Loading…</p></div>
+  <div class="filter-bar" id="filter-bar" style="display:none;"></div>
+  <div id="todo-content"><p class="empty">Loading…</p></div>
 </div>
 
-<!-- ADVISING -->
+<!-- ===== ADVISING ===== -->
 <div class="panel" id="panel-advising">
   <div class="sec-header">
     <h2>Advising</h2>
@@ -43,21 +48,19 @@
       <option value="">— Select Student —</option>
     </select>
   </div>
-
-  <div style="margin-bottom:.6rem;display:flex;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
     <h3 style="font-size:.95rem;">Todos</h3>
     <button class="btn btn-primary btn-sm" onclick="openAddAdvisingTodo()">+ Add</button>
   </div>
   <div class="todo-list" id="adv-todo-list"><p class="empty">Select a student.</p></div>
-
-  <div style="margin:1.5rem 0 .6rem;display:flex;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin:1.5rem 0 .6rem;">
     <h3 style="font-size:.95rem;">Meeting Notes</h3>
     <button class="btn btn-primary btn-sm" onclick="openAddMeeting()">+ Add</button>
   </div>
   <div id="meeting-list"></div>
 </div>
 
-<!-- STUDENTS -->
+<!-- ===== STUDENTS ===== -->
 <div class="panel" id="panel-students">
   <div class="sec-header">
     <h2>PhD Students</h2>
@@ -66,29 +69,28 @@
   <div id="student-list"><p class="empty">Loading…</p></div>
 </div>
 
-<!-- MODAL: Todo -->
+<!-- MODAL: Add/Edit Todo -->
 <div class="modal-overlay" id="todo-modal" onclick="overlayClose(event,'todo-modal')">
   <div class="modal">
     <h3 id="todo-modal-title">Add Todo</h3>
     <input type="hidden" id="f-todo-id">
     <div class="form-group"><label>Title *</label>
-      <input type="text" id="f-title" placeholder="Task title"></div>
-    <div class="form-group"><label>Category</label>
-      <select id="f-cat">
-        <option value="summer">Summer</option>
-        <option value="research">Research</option>
-        <option value="teaching">Teaching</option>
-        <option value="advising">Advising</option>
-      </select></div>
-    <div class="form-group"><label>Due Date → added to Google Calendar</label>
-      <input type="date" id="f-due"></div>
+      <input type="text" id="f-title"></div>
+    <div class="form-group"><label>Project</label>
+      <select id="f-cat"></select></div>
     <div class="form-group"><label>Priority</label>
       <select id="f-pri">
         <option value="high">High</option>
         <option value="medium" selected>Medium</option>
         <option value="low">Low</option>
       </select></div>
-    <div class="form-group"><label>Notes</label>
+    <div class="form-group"><label>Due Date</label>
+      <input type="date" id="f-due"></div>
+    <div class="check-row">
+      <input type="checkbox" id="f-cal">
+      <label for="f-cal">Add to Google Calendar</label>
+    </div>
+    <div class="form-group" style="margin-top:.9rem;"><label>Notes</label>
       <textarea id="f-desc"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
@@ -97,19 +99,103 @@
   </div>
 </div>
 
-<!-- MODAL: Student -->
+<!-- MODAL: Complete with note -->
+<div class="modal-overlay" id="complete-modal" onclick="overlayClose(event,'complete-modal')">
+  <div class="modal" style="width:360px;">
+    <h3>Mark as Complete</h3>
+    <input type="hidden" id="f-complete-id">
+    <div class="form-group">
+      <label>Completion note (optional)</label>
+      <textarea id="f-complete-note" placeholder="e.g. Submitted. Waiting for review…" style="min-height:60px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cancelComplete()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCompletion()">Mark Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Extend due date -->
+<div class="modal-overlay" id="extend-modal" onclick="overlayClose(event,'extend-modal')">
+  <div class="modal" style="width:300px;">
+    <h3>Extend Due Date</h3>
+    <input type="hidden" id="f-extend-id">
+    <div class="form-group">
+      <label>New Due Date</label>
+      <input type="date" id="f-extend-date">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('extend-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExtend()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Projects -->
+<div class="modal-overlay" id="project-modal" onclick="overlayClose(event,'project-modal')">
+  <div class="modal">
+    <h3>Manage Projects</h3>
+    <div id="proj-list-modal" style="margin-bottom:1rem;"></div>
+    <div style="display:flex;gap:.5rem;">
+      <input type="text" id="f-proj-name" placeholder="New project name"
+             style="flex:1;padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.9rem;"
+             onkeydown="if(event.key==='Enter')addProject()">
+      <button class="btn btn-primary" onclick="addProject()">Add</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('project-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Bulk Assign -->
+<div class="modal-overlay" id="bulk-modal" onclick="overlayClose(event,'bulk-modal')">
+  <div class="modal">
+    <h3>Bulk Assign Todo</h3>
+    <div class="form-group"><label>Title *</label>
+      <input type="text" id="f-bulk-title"></div>
+    <div class="form-group"><label>Assign To</label>
+      <select id="f-bulk-group">
+        <option value="all">All Students</option>
+        <option value="phd">PhD Students</option>
+        <option value="undergrad">Undergrad Students</option>
+      </select></div>
+    <div class="form-group"><label>Assigned As</label>
+      <select id="f-bulk-assign">
+        <option value="both">Both (Prof + Student)</option>
+        <option value="student">Student Only</option>
+        <option value="prof">Professor Only</option>
+      </select></div>
+    <div class="form-group"><label>Due Date</label>
+      <input type="date" id="f-bulk-due"></div>
+    <div class="form-group"><label>Notes</label>
+      <textarea id="f-bulk-desc"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('bulk-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBulkTodo()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add Student -->
 <div class="modal-overlay" id="student-modal" onclick="overlayClose(event,'student-modal')">
   <div class="modal">
     <h3>Add Student</h3>
-    <div class="form-group"><label>Student ID *</label>
-      <input type="text" id="f-sid" placeholder="e.g. jdoe2025"></div>
+    <div class="form-group"><label>Email *</label>
+      <input type="email" id="f-semail" placeholder="student@example.com"></div>
     <div class="form-group"><label>Name *</label>
       <input type="text" id="f-sname"></div>
-    <div class="form-group"><label>Email</label>
-      <input type="email" id="f-semail"></div>
+    <div class="form-group"><label>Group</label>
+      <select id="f-sgroup">
+        <option value="phd">PhD</option>
+        <option value="undergrad">Undergrad</option>
+        <option value="other">Other</option>
+      </select></div>
+    <p style="font-size:.8rem;color:var(--gray-600);margin-top:.3rem;">
+      Initial password: <strong>1234</strong> (student can change after first login)</p>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('student-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveStudent()">Add &amp; Generate Link</button>
+      <button class="btn btn-primary" onclick="saveStudent()">Add Student</button>
     </div>
   </div>
 </div>
@@ -160,76 +246,252 @@
 const pw = sessionStorage.getItem('prof_pw');
 if (!pw) window.location.href = 'index.html';
 
-let allTodos = [], allStudents = [], currentFilter = 'all';
+const PALETTE = ['#3182ce','#48bb78','#ed8936','#9f7aea','#e53e3e','#38b2ac','#d69e2e','#b794f4'];
+let allTodos = [], allProjects = [], allStudents = [];
+let currentFilter = 'all', currentView = 'today';
+let todoMap = {};
+
+// ===== INIT =====
+async function init() {
+  const [tr, pr] = await Promise.all([
+    apiCall({ action: 'get_todos' }),
+    apiCall({ action: 'get_projects' })
+  ]);
+  allTodos    = tr.data || [];
+  allProjects = pr.data || [];
+  populateFilterBar();
+  populateCategoryDropdown();
+  renderTodos();
+  loadStudents();
+}
 
 // ===== TABS =====
 function switchTab(el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
-  const p = document.getElementById('panel-' + el.dataset.panel);
-  p.classList.add('active');
-  if (el.dataset.panel === 'todos')    loadTodos();
+  const panel = document.getElementById('panel-' + el.dataset.panel);
+  panel.classList.add('active');
+  if (el.dataset.panel === 'todos')    init();
   if (el.dataset.panel === 'students') loadStudents();
-  if (el.dataset.panel === 'advising') { loadStudents(); }
+  if (el.dataset.panel === 'advising') loadStudents();
+}
+
+// ===== VIEW TOGGLE =====
+function setView(v, el) {
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const panel = document.getElementById('panel-todos');
+  panel.classList.toggle('board-mode', v === 'board');
+  document.getElementById('filter-bar').style.display = (v === 'list') ? 'flex' : 'none';
+  renderTodos();
 }
 
 // ===== TODOS =====
 async function loadTodos() {
   const res = await apiCall({ action: 'get_todos' });
-  allTodos = res.data || [];
+  allTodos  = res.data || [];
   renderTodos();
+}
+
+function populateFilterBar() {
+  document.getElementById('filter-bar').innerHTML =
+    '<span class="chip active" onclick="setFilter(\'all\',this)">All</span>' +
+    allProjects.map(p => `<span class="chip" onclick="setFilter('${escHtml(p.name)}',this)">${escHtml(p.name)}</span>`).join('');
+}
+
+function populateCategoryDropdown() {
+  document.getElementById('f-cat').innerHTML =
+    allProjects.map(p => `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
 }
 
 function setFilter(f, el) {
   currentFilter = f;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#filter-bar .chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   renderTodos();
 }
 
 function renderTodos() {
-  const el = document.getElementById('todo-list');
-  let items = currentFilter === 'all' ? allTodos : allTodos.filter(t => t.category === currentFilter);
+  todoMap = {};
+  allTodos.forEach(t => { todoMap[t.id] = t; });
+  const el = document.getElementById('todo-content');
+  if      (currentView === 'today') renderTodayView(el);
+  else if (currentView === 'board') renderBoardView(el);
+  else                               renderListView(el);
+}
+
+function renderTodayView(el) {
+  const td    = today();
+  const overdue  = allTodos.filter(t => t.status !== 'done' && t.due_date && t.due_date < td)
+    .sort((a,b) => a.due_date.localeCompare(b.due_date));
+  const dueToday = allTodos.filter(t => t.status !== 'done' && t.due_date === td)
+    .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
+
+  let html = '';
+  if (overdue.length) {
+    html += `<div class="section-label">⚠ Overdue (${overdue.length})</div>
+             <div class="todo-list">${overdue.map(todoCardHtml).join('')}</div>`;
+  }
+  if (dueToday.length) {
+    html += `<div class="section-label" style="${overdue.length?'margin-top:1.5rem':''}">📅 Due Today (${dueToday.length})</div>
+             <div class="todo-list">${dueToday.map(todoCardHtml).join('')}</div>`;
+  }
+  if (!overdue.length && !dueToday.length) {
+    html = '<p class="empty" style="padding:1rem 0;">Nothing due today 🎉</p>';
+  }
+  el.innerHTML = html;
+}
+
+function renderListView(el) {
+  let items = currentFilter === 'all'
+    ? allTodos
+    : allTodos.filter(t => t.category === currentFilter);
   items = items.sort((a,b) => {
     if (a.status==='done' && b.status!=='done') return 1;
     if (b.status==='done' && a.status!=='done') return -1;
-    return ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1);
+    const pri = {high:0,medium:1,low:2};
+    const pd = (pri[a.priority]||1) - (pri[b.priority]||1);
+    if (pd !== 0) return pd;
+    return (a.due_date||'').localeCompare(b.due_date||'');
   });
-  if (!items.length) { el.innerHTML = '<p class="empty">No todos.</p>'; return; }
-  el.innerHTML = items.map(t => `
-    <div class="card todo-card cat-${t.category} ${t.status==='done'?'done':''}">
-      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''}
-             onchange="toggleTodo('${t.id}',this.checked)">
+  el.innerHTML = items.length
+    ? '<div class="todo-list">' + items.map(todoCardHtml).join('') + '</div>'
+    : '<p class="empty">No todos.</p>';
+}
+
+function renderBoardView(el) {
+  el.innerHTML = '<div class="board-outer"><div class="board-wrap">' +
+    allProjects.map((p, i) => {
+      const color = PALETTE[i % PALETTE.length];
+      const items = allTodos.filter(t => t.category === p.name)
+        .sort((a,b) => {
+          if (a.status==='done' && b.status!=='done') return 1;
+          if (b.status==='done' && a.status!=='done') return -1;
+          return (a.due_date||'').localeCompare(b.due_date||'');
+        });
+      const pending = items.filter(t => t.status !== 'done').length;
+      return `<div class="board-col">
+        <div class="board-col-header" style="background:${color}">
+          <span>${escHtml(p.name)}</span>
+          <span class="board-col-count">${pending}</span>
+        </div>
+        <div class="board-cards">
+          ${items.map(t => boardCardHtml(t, color)).join('') ||
+            '<div style="font-size:.78rem;color:var(--gray-500);padding:.3rem .2rem">No todos</div>'}
+        </div>
+      </div>`;
+    }).join('') + '</div></div>';
+}
+
+function projectColor(name) {
+  const i = allProjects.findIndex(p => p.name === name);
+  return i >= 0 ? PALETTE[i % PALETTE.length] : 'var(--gray-300)';
+}
+
+function todoCardHtml(t) {
+  const done = t.status === 'done';
+  return `
+    <div class="card todo-card ${done?'done':''}" style="border-left-color:${projectColor(t.category)}">
+      <input type="checkbox" class="todo-check" ${done?'checked':''}
+             onchange="onCheckTodo('${t.id}',this.checked,this)">
       <div class="todo-body">
-        <div class="todo-title">${escHtml(t.title)}</div>
+        <div class="todo-title" style="${done?'text-decoration:line-through':''}">${escHtml(t.title)}</div>
         <div class="todo-meta">
           <span class="badge badge-${t.priority}">${t.priority}</span>
           ${escHtml(t.category)}${t.due_date?' · '+t.due_date:''}${t.calendar_event_id?' 📅':''}
         </div>
         ${t.description?`<div class="todo-desc">${escHtml(t.description)}</div>`:''}
+        ${done && t.completion_note?`<div class="todo-desc" style="color:#276749;margin-top:.3rem;">✓ ${escHtml(t.completion_note)}</div>`:''}
       </div>
       <div class="todo-actions">
-        <button class="btn btn-ghost btn-sm" onclick='openEditTodo(${JSON.stringify(t)})'>Edit</button>
+        <button class="btn btn-ghost btn-sm" title="Extend due date" onclick="openExtend('${t.id}','${t.due_date||''}')">⏱</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditTodo('${t.id}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="delTodo('${t.id}')">Del</button>
       </div>
-    </div>`).join('');
+    </div>`;
 }
 
-function resetTodoForm() {
-  ['f-todo-id','f-title','f-desc','f-due'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('f-cat').value = 'summer';
-  document.getElementById('f-pri').value = 'medium';
+function boardCardHtml(t, color) {
+  const done = t.status === 'done';
+  return `
+    <div class="board-card ${done?'done':''}" style="border-left-color:${color}" onclick="openEditTodo('${t.id}')">
+      <div class="board-card-top">
+        <input type="checkbox" ${done?'checked':''} onclick="event.stopPropagation();onCheckTodo('${t.id}',this.checked,this)">
+        <span class="badge badge-${t.priority}">${t.priority}</span>
+      </div>
+      <div class="board-card-title" style="${done?'text-decoration:line-through':''}">${escHtml(t.title)}</div>
+      ${t.due_date?`<div class="board-card-meta">📅 ${t.due_date}${t.calendar_event_id?' ✓':''}</div>`:''}
+    </div>`;
+}
+
+// Checkbox: open completion modal when checking; uncomplete directly
+function onCheckTodo(id, checked, cb) {
+  if (checked) {
+    document.getElementById('f-complete-id').value = id;
+    document.getElementById('f-complete-note').value = '';
+    openModal('complete-modal');
+    cb.checked = false; // revert until confirmed
+  } else {
+    apiCall({ action: 'update_todo', id, status: 'pending', completion_note: '' })
+      .then(loadTodos);
+  }
+}
+
+function cancelComplete() {
+  closeModal('complete-modal');
+}
+
+async function saveCompletion() {
+  const id   = document.getElementById('f-complete-id').value;
+  const note = document.getElementById('f-complete-note').value.trim();
+  await apiCall({ action: 'update_todo', id, status: 'done', completion_note: note });
+  closeModal('complete-modal');
+  loadTodos();
+}
+
+// Extend due date
+function openExtend(id, currentDate) {
+  document.getElementById('f-extend-id').value   = id;
+  document.getElementById('f-extend-date').value  = currentDate;
+  openModal('extend-modal');
+}
+
+async function saveExtend() {
+  const id   = document.getElementById('f-extend-id').value;
+  const date = document.getElementById('f-extend-date').value;
+  await apiCall({ action: 'update_todo', id, due_date: date });
+  closeModal('extend-modal');
+  loadTodos();
+}
+
+// Add / Edit Todo
+function openAddTodo() {
+  document.getElementById('f-todo-id').value    = '';
+  document.getElementById('f-title').value       = '';
+  document.getElementById('f-desc').value        = '';
+  document.getElementById('f-due').value         = '';
+  document.getElementById('f-cal').checked       = false;
+  document.getElementById('f-pri').value         = 'medium';
+  if (allProjects.length) document.getElementById('f-cat').selectedIndex = 0;
   document.getElementById('todo-modal-title').textContent = 'Add Todo';
+  openModal('todo-modal');
 }
 
-function openEditTodo(t) {
+function openEditTodo(id) {
+  const t = todoMap[id];
+  if (!t) return;
   document.getElementById('f-todo-id').value = t.id;
   document.getElementById('f-title').value   = t.title;
   document.getElementById('f-desc').value    = t.description || '';
   document.getElementById('f-due').value     = t.due_date || '';
-  document.getElementById('f-cat').value     = t.category;
   document.getElementById('f-pri').value     = t.priority;
+  document.getElementById('f-cal').checked   = false;
+  const sel = document.getElementById('f-cat');
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === t.category) { sel.selectedIndex = i; break; }
+  }
   document.getElementById('todo-modal-title').textContent = 'Edit Todo';
   openModal('todo-modal');
 }
@@ -238,17 +500,16 @@ async function saveTodo() {
   const id    = document.getElementById('f-todo-id').value;
   const title = document.getElementById('f-title').value.trim();
   if (!title) return alert('Title is required.');
-  const payload = { title, category: document.getElementById('f-cat').value,
-    due_date: document.getElementById('f-due').value,
-    priority: document.getElementById('f-pri').value,
-    description: document.getElementById('f-desc').value };
+  const payload = {
+    title,
+    category:       document.getElementById('f-cat').value,
+    due_date:       document.getElementById('f-due').value,
+    priority:       document.getElementById('f-pri').value,
+    description:    document.getElementById('f-desc').value,
+    add_to_calendar: document.getElementById('f-cal').checked
+  };
   await apiCall({ action: id ? 'update_todo' : 'add_todo', id: id||undefined, ...payload });
   closeModal('todo-modal');
-  loadTodos();
-}
-
-async function toggleTodo(id, done) {
-  await apiCall({ action: 'update_todo', id, status: done ? 'done' : 'pending' });
   loadTodos();
 }
 
@@ -258,54 +519,112 @@ async function delTodo(id) {
   loadTodos();
 }
 
+// ===== PROJECTS =====
+function openProjectModal() {
+  renderProjectsModal();
+  openModal('project-modal');
+}
+
+function renderProjectsModal() {
+  const el = document.getElementById('proj-list-modal');
+  if (!allProjects.length) { el.innerHTML = '<p class="empty">No projects yet.</p>'; return; }
+  el.innerHTML = allProjects.map((p, i) => `
+    <div class="proj-row">
+      <span><span class="proj-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${escHtml(p.name)}</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Remove</button>
+    </div>`).join('');
+}
+
+async function addProject() {
+  const name = document.getElementById('f-proj-name').value.trim();
+  if (!name) return;
+  await apiCall({ action: 'add_project', name });
+  document.getElementById('f-proj-name').value = '';
+  const pr = await apiCall({ action: 'get_projects' });
+  allProjects = pr.data || [];
+  renderProjectsModal();
+  populateFilterBar();
+  populateCategoryDropdown();
+}
+
+async function deleteProject(id) {
+  if (!confirm('Remove this project?')) return;
+  await apiCall({ action: 'delete_project', id });
+  const pr = await apiCall({ action: 'get_projects' });
+  allProjects = pr.data || [];
+  renderProjectsModal();
+  populateFilterBar();
+  populateCategoryDropdown();
+  renderTodos();
+}
+
+// ===== BULK ASSIGN =====
+async function saveBulkTodo() {
+  const title = document.getElementById('f-bulk-title').value.trim();
+  if (!title) return alert('Title is required.');
+  const res = await apiCall({
+    action:      'bulk_add_advising_todo',
+    title,
+    description: document.getElementById('f-bulk-desc').value,
+    due_date:    document.getElementById('f-bulk-due').value,
+    group:       document.getElementById('f-bulk-group').value,
+    assigned_to: document.getElementById('f-bulk-assign').value
+  });
+  closeModal('bulk-modal');
+  alert(`Assigned to ${res.count} student(s).`);
+  document.getElementById('f-bulk-title').value = '';
+  document.getElementById('f-bulk-desc').value  = '';
+  document.getElementById('f-bulk-due').value   = '';
+}
+
 // ===== STUDENTS =====
 async function loadStudents() {
-  const res = await apiCall({ action: 'get_students' });
+  const res  = await apiCall({ action: 'get_students' });
   allStudents = res.data || [];
   renderStudents();
   const sel = document.getElementById('sel-student');
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Select Student —</option>' +
-    allStudents.map(s => `<option value="${s.student_id}" ${s.student_id===cur?'selected':''}>${escHtml(s.name)}</option>`).join('');
+    allStudents.map(s =>
+      `<option value="${escHtml(s.email)}" ${s.email===cur?'selected':''}>${escHtml(s.name)}</option>`
+    ).join('');
 }
 
 function renderStudents() {
   const el = document.getElementById('student-list');
   if (!allStudents.length) { el.innerHTML = '<p class="empty">No students yet.</p>'; return; }
-  const base = location.origin + location.pathname.replace('professor.html','') + 'index.html';
+  const portalUrl = location.origin + location.pathname.replace('professor.html','') + 'student.html';
   el.innerHTML = allStudents.map(s => `
     <div class="card student-card" style="margin-bottom:.55rem;">
       <div>
         <div class="student-name">${escHtml(s.name)}
-          <span style="font-weight:400;color:var(--gray-600);font-size:.83rem;">(${escHtml(s.student_id)})</span>
+          <span class="group-badge ${escHtml(s.group||'other')}">${escHtml(s.group||'—')}</span>
         </div>
-        <div class="student-meta">
-          Link: <span class="token-box">${base}?token=${s.token}</span>
-          <button class="btn btn-ghost btn-sm" style="margin-left:.4rem;"
-                  onclick="navigator.clipboard.writeText('${base}?token=${s.token}').then(()=>alert('Copied!'))">Copy</button>
+        <div class="student-meta">${escHtml(s.email)}</div>
+        <div class="student-meta" style="margin-top:.2rem;">
+          Portal: <a href="${portalUrl}" target="_blank" style="color:var(--blue);">${portalUrl}</a>
+          &nbsp;·&nbsp; Initial pw: <strong>1234</strong>
         </div>
       </div>
-      <button class="btn btn-danger btn-sm" onclick="delStudent('${s.student_id}')">Remove</button>
+      <button class="btn btn-danger btn-sm" onclick="delStudent('${escHtml(s.email)}')">Remove</button>
     </div>`).join('');
 }
 
 async function saveStudent() {
-  const sid  = document.getElementById('f-sid').value.trim();
-  const name = document.getElementById('f-sname').value.trim();
-  if (!sid||!name) return alert('ID and Name are required.');
-  const res = await apiCall({ action: 'add_student', student_id: sid, name,
-                               email: document.getElementById('f-semail').value });
-  if (res.ok) {
-    closeModal('student-modal');
-    await loadStudents();
-    const base = location.origin + location.pathname.replace('professor.html','') + 'index.html';
-    alert(`Student added!\nShare this link:\n${base}?token=${res.token}`);
-  }
+  const email = document.getElementById('f-semail').value.trim();
+  const name  = document.getElementById('f-sname').value.trim();
+  if (!email||!name) return alert('Email and Name are required.');
+  await apiCall({ action: 'add_student', email, name,
+                  group: document.getElementById('f-sgroup').value });
+  closeModal('student-modal');
+  document.getElementById('f-semail').value = '';
+  document.getElementById('f-sname').value  = '';
+  loadStudents();
 }
 
-async function delStudent(sid) {
+async function delStudent(email) {
   if (!confirm('Remove student?')) return;
-  await apiCall({ action: 'delete_student', student_id: sid });
+  await apiCall({ action: 'delete_student', email });
   loadStudents();
 }
 
@@ -315,7 +634,7 @@ async function loadAdvisingData() {
   if (!sid) return;
   const [tr, mr] = await Promise.all([
     apiCall({ action: 'get_advising_todos', student_id: sid }),
-    apiCall({ action: 'get_meetings', student_id: sid })
+    apiCall({ action: 'get_meetings',       student_id: sid })
   ]);
   renderAdvTodos(tr.data||[]);
   renderMeetings(mr.data||[]);
@@ -324,15 +643,19 @@ async function loadAdvisingData() {
 function renderAdvTodos(items) {
   const el = document.getElementById('adv-todo-list');
   if (!items.length) { el.innerHTML = '<p class="empty">No todos.</p>'; return; }
-  el.innerHTML = items.map(t => `
-    <div class="card todo-card cat-advising ${t.status==='done'?'done':''}">
-      <input type="checkbox" class="todo-check" ${t.status==='done'?'checked':''}
-             onchange="toggleAdvTodo('${t.id}',this.checked)">
-      <div class="todo-body">
-        <div class="todo-title">${escHtml(t.title)}</div>
-        <div class="todo-meta">Assigned: ${t.assigned_to}${t.due_date?' · '+t.due_date:''}</div>
-      </div>
-    </div>`).join('');
+  el.innerHTML = items.map(t => {
+    const done = t.status === 'done';
+    return `
+      <div class="card todo-card cat-advising ${done?'done':''}">
+        <input type="checkbox" class="todo-check" ${done?'checked':''}
+               onchange="toggleAdvTodo('${t.id}',this.checked)">
+        <div class="todo-body">
+          <div class="todo-title" style="${done?'text-decoration:line-through':''}">${escHtml(t.title)}</div>
+          <div class="todo-meta">Assigned: ${t.assigned_to}${t.due_date?' · '+t.due_date:''}</div>
+          ${done && t.completion_note?`<div class="todo-desc" style="color:#276749;">✓ ${escHtml(t.completion_note)}</div>`:''}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 async function toggleAdvTodo(id, done) {
@@ -359,9 +682,9 @@ function openAddAdvisingTodo() {
 async function saveAdvisingTodo() {
   const sid = document.getElementById('sel-student').value;
   await apiCall({ action: 'add_advising_todo', student_id: sid,
-    title: document.getElementById('f-at-title').value,
+    title:       document.getElementById('f-at-title').value,
     description: document.getElementById('f-at-desc').value,
-    due_date: document.getElementById('f-at-due').value,
+    due_date:    document.getElementById('f-at-due').value,
     assigned_to: document.getElementById('f-at-assign').value });
   closeModal('adv-todo-modal');
   loadAdvisingData();
@@ -376,20 +699,20 @@ function openAddMeeting() {
 async function saveMeeting() {
   const sid = document.getElementById('sel-student').value;
   await apiCall({ action: 'add_meeting', student_id: sid,
-    date: document.getElementById('f-m-date').value,
-    notes: document.getElementById('f-m-notes').value,
+    date:         document.getElementById('f-m-date').value,
+    notes:        document.getElementById('f-m-notes').value,
     action_items: document.getElementById('f-m-actions').value });
   closeModal('meeting-modal');
   loadAdvisingData();
 }
 
-// ===== MODAL UTILS =====
+// ===== UTILS =====
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
 
-loadTodos();
+init();
 </script>
 </body>
 </html>
