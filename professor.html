@@ -37,6 +37,7 @@
     </div>
   </div>
   <div class="filter-bar" id="filter-bar" style="display:none;"></div>
+  <div class="tag-bar" id="tag-bar" style="display:none;"></div>
   <div id="todo-content"><p class="empty">Loading…</p></div>
 </div>
 
@@ -93,6 +94,8 @@
     </div>
     <div class="form-group" style="margin-top:.9rem;"><label>Notes</label>
       <textarea id="f-desc"></textarea></div>
+    <div class="form-group"><label>Tags <span style="font-weight:400;color:var(--gray-500);">(comma-separated)</span></label>
+      <input type="text" id="f-tags" placeholder="e.g. summer, urgent"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTodo()">Save</button>
@@ -249,7 +252,7 @@ if (!pw) window.location.href = 'index.html';
 
 const PALETTE = ['#3182ce','#48bb78','#ed8936','#9f7aea','#e53e3e','#38b2ac','#d69e2e','#b794f4'];
 let allTodos = [], allProjects = [], allStudents = [];
-let currentFilter = 'all', currentView = 'today';
+let currentFilter = 'all', currentView = 'today', currentTagFilter = null;
 let todoMap = {};
 
 // ===== INIT =====
@@ -317,6 +320,16 @@ function setFilter(f, el) {
 function renderTodos() {
   todoMap = {};
   allTodos.forEach(t => { todoMap[t.id] = t; });
+  // Tag bar: only in list view
+  const tagBar = document.getElementById('tag-bar');
+  const tags   = getAllTags();
+  if (currentView === 'list' && tags.length) {
+    tagBar.style.display = 'flex';
+    tagBar.innerHTML = '<span class="tag-bar-label">Tags:</span>' +
+      tags.map(tag => `<span class="chip tag-chip${currentTagFilter===tag?' active':''}" onclick="setTagFilter('${escHtml(tag)}',this)">${escHtml(tag)}</span>`).join('');
+  } else {
+    tagBar.style.display = 'none';
+  }
   const el = document.getElementById('todo-content');
   if      (currentView === 'today') renderTodayView(el);
   else if (currentView === 'board') renderBoardView(el);
@@ -350,6 +363,10 @@ function renderListView(el) {
   let items = currentFilter === 'all'
     ? allTodos
     : allTodos.filter(t => t.category === currentFilter);
+  if (currentTagFilter) {
+    items = items.filter(t => t.tags &&
+      t.tags.split(',').map(s => s.trim()).includes(currentTagFilter));
+  }
   items = items.sort((a,b) => {
     if (a.status==='done' && b.status!=='done') return 1;
     if (b.status==='done' && a.status!=='done') return -1;
@@ -424,6 +441,36 @@ function renderWeekView(el) {
   el.innerHTML = html;
 }
 
+// ===== TAGS =====
+const TAG_PALETTE = [
+  ['#bee3f8','#2c5282'],['#c6f6d5','#276749'],['#fefcbf','#744210'],
+  ['#fed7d7','#742a2a'],['#e9d8fd','#553c9a'],['#b2f5ea','#234e52']
+];
+function tagColors(tag) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) & 0xffff;
+  return TAG_PALETTE[h % TAG_PALETTE.length];
+}
+function renderTagPills(tags) {
+  return (tags || '').split(',').map(s => s.trim()).filter(Boolean).map(tag => {
+    const [bg, color] = tagColors(tag);
+    return `<span class="tag-pill" style="background:${bg};color:${color}">${escHtml(tag)}</span>`;
+  }).join('');
+}
+function getAllTags() {
+  const set = new Set();
+  allTodos.forEach(t => {
+    if (t.tags) t.tags.split(',').map(s => s.trim()).filter(Boolean).forEach(tag => set.add(tag));
+  });
+  return [...set].sort();
+}
+function setTagFilter(tag, el) {
+  currentTagFilter = (currentTagFilter === tag) ? null : tag;
+  document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+  if (currentTagFilter) el.classList.add('active');
+  renderTodos();
+}
+
 function projectColor(name) {
   const i = allProjects.findIndex(p => p.name === name);
   return i >= 0 ? PALETTE[i % PALETTE.length] : 'var(--gray-300)';
@@ -443,6 +490,7 @@ function todoCardHtml(t) {
         </div>
         ${t.description?`<div class="todo-desc">${escHtml(t.description)}</div>`:''}
         ${done && t.completion_note?`<div class="todo-desc" style="color:#276749;margin-top:.3rem;">✓ ${escHtml(t.completion_note)}</div>`:''}
+        ${t.tags?`<div style="margin-top:.3rem;">${renderTagPills(t.tags)}</div>`:''}
       </div>
       <div class="todo-actions">
         <button class="btn btn-ghost btn-sm" title="Extend due date" onclick="openExtend('${t.id}','${t.due_date||''}')">⏱</button>
@@ -513,6 +561,7 @@ function openAddTodo() {
   document.getElementById('f-due').value         = '';
   document.getElementById('f-cal').checked       = false;
   document.getElementById('f-pri').value         = 'medium';
+  document.getElementById('f-tags').value        = '';
   if (allProjects.length) document.getElementById('f-cat').selectedIndex = 0;
   document.getElementById('todo-modal-title').textContent = 'Add Todo';
   openModal('todo-modal');
@@ -527,6 +576,7 @@ function openEditTodo(id) {
   document.getElementById('f-due').value     = t.due_date || '';
   document.getElementById('f-pri').value     = t.priority;
   document.getElementById('f-cal').checked   = false;
+  document.getElementById('f-tags').value    = t.tags || '';
   const sel = document.getElementById('f-cat');
   for (let i = 0; i < sel.options.length; i++) {
     if (sel.options[i].value === t.category) { sel.selectedIndex = i; break; }
@@ -545,6 +595,7 @@ async function saveTodo() {
     due_date:       document.getElementById('f-due').value,
     priority:       document.getElementById('f-pri').value,
     description:    document.getElementById('f-desc').value,
+    tags:           document.getElementById('f-tags').value.trim(),
     add_to_calendar: document.getElementById('f-cal').checked
   };
   await apiCall({ action: id ? 'update_todo' : 'add_todo', id: id||undefined, ...payload });

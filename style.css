@@ -167,6 +167,13 @@ header h1 { font-size: 1.15rem; }
             padding: .4rem 0; border-bottom: 1px solid var(--gray-200); }
 .proj-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: .5rem; }
 
+/* Tags */
+.tag-pill { display: inline-block; padding: .08rem .45rem; border-radius: 20px;
+            font-size: .7rem; font-weight: 600; margin-right: .2rem; }
+.tag-bar  { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+            margin-bottom: .8rem; }
+.tag-bar-label { font-size: .75rem; font-weight: 600; color: var(--gray-600); flex-shrink: 0; }
+
 /* Week view */
 .week-view { display: flex; gap: .55rem; overflow-x: auto; padding-bottom: 1rem; }
 .week-day  { flex: 1; min-width: 130px; background: #fff; border-radius: 8px;
