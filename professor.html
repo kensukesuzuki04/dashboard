@@ -326,7 +326,9 @@ let _dragProjId = null;
 
 // ===== INIT =====
 async function init() {
-  const name = (typeof CONFIG !== 'undefined' && CONFIG.DISPLAY_NAME) ? CONFIG.DISPLAY_NAME : '';
+  const configName = (typeof CONFIG !== 'undefined' && CONFIG.DISPLAY_NAME) ? CONFIG.DISPLAY_NAME : '';
+  const emailName  = (sessionStorage.getItem('prof_email') || '').split('@')[0];
+  const name = configName || emailName;
   document.getElementById('welcome-msg').textContent = name ? `Welcome, ${name}` : '';
   const [tr, pr] = await Promise.all([
     apiCall({ action: 'get_todos' }),
