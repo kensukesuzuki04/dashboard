@@ -339,9 +339,13 @@ let _dragProjId = null;
 // ===== INIT =====
 async function init() {
   const configName = (typeof CONFIG !== 'undefined' && CONFIG.DISPLAY_NAME) ? CONFIG.DISPLAY_NAME : '';
-  const emailName  = (sessionStorage.getItem('prof_email') || '').split('@')[0];
+  const profEmail  = sessionStorage.getItem('prof_email') || '';
+  const emailName  = profEmail.split('@')[0];
   const name = configName || emailName;
-  document.getElementById('welcome-msg').textContent = name ? `Welcome, ${name}` : '';
+  const welcomeText = name
+    ? `Welcome, ${name}${profEmail ? ` (${profEmail})` : ''}`
+    : (profEmail || '');
+  document.getElementById('welcome-msg').textContent = welcomeText;
   const [tr, pr, cr] = await Promise.all([
     apiCall({ action: 'get_todos' }),
     apiCall({ action: 'get_projects' }),
@@ -548,8 +552,13 @@ function boardColHtml(p, i, pendingOnly) {
 }
 
 function groupedBoardHtml(pendingOnly) {
+  const PINNED = ['Research', 'Admin', 'Teaching'];
+  const orderedGroups = [
+    ...PINNED.filter(g => GROUPS.includes(g)),
+    ...GROUPS.filter(g => !PINNED.includes(g))
+  ];
   let html = '';
-  GROUPS.forEach(g => {
+  orderedGroups.forEach(g => {
     const projs = allProjects.filter(p => p.group === g);
     if (!projs.length) return;
     const gc = GROUP_COLORS[g] || '#718096';
@@ -561,11 +570,9 @@ function groupedBoardHtml(pendingOnly) {
   });
   const other = allProjects.filter(p => !p.group || !GROUPS.includes(p.group));
   if (other.length) {
-    const defaultG = GROUPS[0] || 'Other';
-    const gc = GROUP_COLORS[defaultG] || '#718096';
     html += `<div style="margin-bottom:1.8rem;">
       <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
-                  color:${gc};border-bottom:2px solid ${gc};padding-bottom:.22rem;margin-bottom:.65rem;">${escHtml(defaultG)}</div>
+                  color:var(--gray-500);border-bottom:2px solid var(--gray-300);padding-bottom:.22rem;margin-bottom:.65rem;">Others</div>
       <div class="board-wrap">${other.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
     </div>`;
   }
