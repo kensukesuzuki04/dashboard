@@ -964,6 +964,7 @@ function openProjectModal() {
 function renderProjectsModal() {
   const el = document.getElementById('proj-list-modal');
   if (!allProjects.length) { el.innerHTML = '<p class="empty">No projects yet.</p>'; return; }
+  const groupOpts = GROUPS.map(g => `<option value="${g}">${g}</option>`).join('');
   el.innerHTML = allProjects.map((p, i) => `
     <div class="proj-row">
       <div style="display:flex;align-items:center;gap:.5rem;">
@@ -975,8 +976,25 @@ function renderProjectsModal() {
         </div>
         <span><span class="proj-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${escHtml(p.name)}</span>
       </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}','${escHtml(p.name)}')">Remove</button>
+      <div style="display:flex;align-items:center;gap:.4rem;">
+        <select onchange="updateProjectGroup('${p.id}',this.value)"
+                style="padding:.28rem .55rem;border:1.5px solid var(--gray-300);border-radius:6px;font-size:.8rem;">
+          ${GROUPS.map(g => `<option value="${g}"${(p.group||'Research')===g?' selected':''}>${g}</option>`).join('')}
+        </select>
+        <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}','${escHtml(p.name)}')">Remove</button>
+      </div>
     </div>`).join('');
+}
+
+async function updateProjectGroup(id, group) {
+  const p = allProjects.find(p => p.id === id);
+  if (!p) return;
+  p.group = group;
+  await apiCall({ action: 'update_project', id, group });
+  populateFilterBar();
+  populateCategoryDropdown();
+  renderTodos();
+  showSaveToast();
 }
 
 async function moveProject(id, direction) {
