@@ -985,10 +985,11 @@ function openProjectModal() {
 }
 
 function populateGroupSelects() {
-  const opts = GROUPS.map(g => `<option value="${g}">${g}</option>`).join('');
+  const blank = '<option value="" disabled selected>— Select category —</option>';
+  const opts  = GROUPS.map(g => `<option value="${g}">${g}</option>`).join('');
   ['f-proj-group','f-inline-proj-group'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
+    if (el) el.innerHTML = blank + opts;
   });
 }
 
