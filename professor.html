@@ -193,7 +193,7 @@
       <button class="btn btn-primary" onclick="addProject()">Add</button>
     </div>
     <div id="proj-add-err" style="color:var(--red);font-size:.8rem;margin-top:.4rem;min-height:1rem;"></div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="proj-modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('project-modal')">Close</button>
     </div>
   </div>
@@ -978,10 +978,47 @@ async function delTodo(id) {
 }
 
 // ===== PROJECTS =====
+let _projSnapshot = null;
+let _projDirty    = false;
+
 function openProjectModal() {
+  _projSnapshot = allProjects.map(p => ({ ...p }));
+  _projDirty    = false;
+  updateProjFooter();
   renderGroupsSection();
   renderProjectsModal();
   openModal('project-modal');
+}
+
+function markProjDirty() {
+  _projDirty = true;
+  updateProjFooter();
+}
+
+function updateProjFooter() {
+  const el = document.getElementById('proj-modal-footer');
+  if (!el) return;
+  if (_projDirty) {
+    el.innerHTML = `
+      <button class="btn btn-ghost" onclick="cancelProjectModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('project-modal')">Save</button>`;
+  } else {
+    el.innerHTML = `<button class="btn btn-ghost" onclick="closeModal('project-modal')">Close</button>`;
+  }
+}
+
+async function cancelProjectModal() {
+  if (_projSnapshot) {
+    allProjects = _projSnapshot;
+    await apiCall({ action: 'update_project_order', order: allProjects.map(p => p.id) });
+    for (const p of allProjects) {
+      await apiCall({ action: 'update_project', id: p.id, group: p.group || '' });
+    }
+    populateFilterBar();
+    populateCategoryDropdown();
+    renderTodos();
+  }
+  closeModal('project-modal');
 }
 
 function populateGroupSelects() {
@@ -1095,6 +1132,7 @@ async function projRowDrop(e, targetId) {
   const [moved] = allProjects.splice(fromIdx, 1);
   allProjects.splice(toIdx, 0, moved);
   await apiCall({ action: 'update_project_order', order: allProjects.map(p => p.id) });
+  markProjDirty();
   renderProjectsModal();
   populateFilterBar();
   populateCategoryDropdown();
@@ -1114,6 +1152,7 @@ async function updateProjectGroup(id, group) {
   if (!p) return;
   p.group = group;
   await apiCall({ action: 'update_project', id, group });
+  markProjDirty();
   populateFilterBar();
   populateCategoryDropdown();
   renderTodos();
