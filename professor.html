@@ -399,7 +399,8 @@ async function loadTodos() {
 }
 
 function populateFilterBar() {
-  const usedGroups = GROUPS.filter(g => allProjects.some(p => p.group === g));
+  const defaultGroup = GROUPS[0] || 'Research';
+  const usedGroups = GROUPS.filter(g => allProjects.some(p => (p.group || defaultGroup) === g));
   const hasUncat   = allTodos.some(t => !allProjects.some(p => p.name === t.category));
   document.getElementById('filter-bar').innerHTML =
     '<span class="chip active" onclick="setFilter(\'all\',this)">All</span>' +
@@ -558,8 +559,9 @@ function groupedBoardHtml(pendingOnly) {
     ...GROUPS.filter(g => !PINNED.includes(g))
   ];
   let html = '';
+  const defaultGroup = orderedGroups[0] || 'Research';
   orderedGroups.forEach(g => {
-    const projs = allProjects.filter(p => p.group === g);
+    const projs = allProjects.filter(p => (p.group || defaultGroup) === g);
     if (!projs.length) return;
     const gc = GROUP_COLORS[g] || '#718096';
     html += `<div style="margin-bottom:1.8rem;">
@@ -568,7 +570,7 @@ function groupedBoardHtml(pendingOnly) {
       <div class="board-wrap">${projs.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
     </div>`;
   });
-  const other = allProjects.filter(p => !p.group || !GROUPS.includes(p.group));
+  const other = allProjects.filter(p => p.group && !GROUPS.includes(p.group));
   if (other.length) {
     html += `<div style="margin-bottom:1.8rem;">
       <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
@@ -703,7 +705,8 @@ function filterTodos(todos) {
   let items = todos;
   if (currentFilter !== 'all') {
     if (GROUPS.includes(currentFilter)) {
-      const names = allProjects.filter(p => p.group === currentFilter).map(p => p.name);
+      const defG  = GROUPS[0] || 'Research';
+      const names = allProjects.filter(p => (p.group || defG) === currentFilter).map(p => p.name);
       items = todos.filter(t => names.includes(t.category));
     } else if (currentFilter === 'Uncategorized') {
       items = todos.filter(t => !allProjects.some(p => p.name === t.category));
