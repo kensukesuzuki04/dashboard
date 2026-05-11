@@ -1086,17 +1086,18 @@ function renderProjectsModal() {
   const el = document.getElementById('proj-list-modal');
   if (!allProjects.length) { el.innerHTML = '<p class="empty">No projects yet.</p>'; return; }
   el.innerHTML = allProjects.map((p, i) => `
-    <div class="proj-row" draggable="true" data-id="${p.id}"
-         ondragstart="projRowDragStart(event,'${p.id}')"
+    <div class="proj-row" data-id="${p.id}"
          ondragover="projRowDragOver(event)"
          ondragleave="projRowDragLeave(event)"
          ondrop="projRowDrop(event,'${p.id}')"
-         ondragend="projRowDragEnd()"
          style="cursor:default;">
       <div style="display:flex;align-items:center;gap:.5rem;">
-        <span style="cursor:grab;color:var(--gray-500);font-size:1rem;padding:0 .15rem;user-select:none;"
+        <span draggable="true"
+              ondragstart="projRowDragStart(event,'${p.id}')"
+              ondragend="projRowDragEnd()"
+              style="cursor:grab;color:var(--gray-500);font-size:1.1rem;padding:0 .2rem;user-select:none;line-height:1;"
               title="Drag to reorder">⠿</span>
-        <span><span class="proj-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${escHtml(p.name)}</span>
+        <span style="pointer-events:none;"><span class="proj-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${escHtml(p.name)}</span>
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;">
         <select onchange="updateProjectGroup('${p.id}',this.value)"
@@ -1111,20 +1112,26 @@ function renderProjectsModal() {
 function projRowDragStart(e, id) {
   _dragProjRowId = id;
   e.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => e.currentTarget.style.opacity = '.35', 0);
+  e.dataTransfer.setData('text/plain', id);
+  const row = e.currentTarget;
+  setTimeout(() => { row.style.opacity = '.35'; }, 0);
 }
 function projRowDragOver(e) {
   e.preventDefault();
+  e.stopPropagation();
   e.dataTransfer.dropEffect = 'move';
-  e.currentTarget.style.background = 'var(--blue-light)';
+  const row = e.currentTarget.closest('.proj-row');
+  if (row) row.style.outline = '2px dashed var(--blue)';
 }
 function projRowDragLeave(e) {
-  if (!e.currentTarget.contains(e.relatedTarget))
-    e.currentTarget.style.background = '';
+  const row = e.currentTarget.closest('.proj-row');
+  if (row && !row.contains(e.relatedTarget)) row.style.outline = '';
 }
 async function projRowDrop(e, targetId) {
   e.preventDefault();
-  e.currentTarget.style.background = '';
+  e.stopPropagation();
+  const row = e.currentTarget.closest('.proj-row');
+  if (row) row.style.outline = '';
   if (!_dragProjRowId || _dragProjRowId === targetId) return;
   const fromIdx = allProjects.findIndex(p => p.id === _dragProjRowId);
   const toIdx   = allProjects.findIndex(p => p.id === targetId);
@@ -1143,7 +1150,7 @@ function projRowDragEnd() {
   _dragProjRowId = null;
   document.querySelectorAll('#proj-list-modal .proj-row').forEach(r => {
     r.style.opacity = '';
-    r.style.background = '';
+    r.style.outline = '';
   });
 }
 
