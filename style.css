@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --blue: #3182ce; --blue-dark: #2b6cb0; --blue-light: #ebf8ff;
+  --blue: #cc0000; --blue-dark: #a30000; --blue-light: #fff0f0;
   --green: #48bb78; --orange: #ed8936; --purple: #9f7aea; --red: #e53e3e;
   --gray-100: #f7fafc; --gray-200: #edf2f7; --gray-300: #e2e8f0;
   --gray-500: #a0aec0; --gray-600: #718096; --gray-700: #4a5568; --gray-900: #1a202c;
