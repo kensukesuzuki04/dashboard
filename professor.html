@@ -27,9 +27,7 @@
         <span class="view-btn active" onclick="setView('today',this)">Today</span>
         <span class="view-btn"        onclick="setView('list',this)">List</span>
         <span class="view-btn"        onclick="setView('board',this)">Board</span>
-        <span class="view-btn"        onclick="setView('week',this)">Week</span>
         <span class="view-btn"        onclick="setView('month',this)">Month</span>
-        <span class="view-btn"        onclick="setView('done',this)">Done</span>
       </div>
     </div>
     <div style="display:flex;gap:.4rem;">
@@ -97,8 +95,13 @@
     </div>
     <div class="form-group" style="margin-top:.9rem;"><label>Notes</label>
       <textarea id="f-desc"></textarea></div>
-    <div class="form-group"><label>Tags <span style="font-weight:400;color:var(--gray-500);">(comma-separated)</span></label>
-      <input type="text" id="f-tags" placeholder="e.g. summer, urgent"></div>
+    <div class="form-group" style="position:relative;"><label>Tags <span style="font-weight:400;color:var(--gray-500);">(comma-separated)</span></label>
+      <input type="text" id="f-tags" placeholder="e.g. summer, urgent"
+             oninput="tagAutocomplete(this)" onblur="setTimeout(()=>closeTagSug(),150)" autocomplete="off">
+      <div id="tag-suggestions" style="display:none;position:absolute;z-index:200;background:#fff;
+           border:1.5px solid var(--gray-300);border-radius:7px;box-shadow:var(--shadow);
+           max-height:160px;overflow-y:auto;left:0;right:0;top:100%;"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTodo()">Save</button>
@@ -195,8 +198,8 @@
          border:1px solid var(--gray-200);border-radius:7px;padding:.7rem;background:var(--gray-100);"></div>
     <div class="form-group">
       <label>Add Note</label>
-      <textarea id="f-new-note" placeholder="What's the progress?" style="min-height:64px;"
-                onkeydown="if(event.key==='Enter'&&event.metaKey)addTodoNote()"></textarea>
+      <textarea id="f-new-note" placeholder="Progress update… (date recorded automatically; Cmd+Enter to save)" style="min-height:64px;"
+                onkeydown="if(event.key==='Enter'&&(event.metaKey||event.ctrlKey))addTodoNote()"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('notes-modal')">Close</button>
@@ -312,11 +315,11 @@ function setView(v, el) {
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   const panel = document.getElementById('panel-todos');
-  panel.classList.toggle('board-mode', v === 'board' || v === 'week');
+  panel.classList.toggle('board-mode', v === 'board');
   panel.classList.toggle('month-mode', v === 'month');
-  const showFilter = ['list','week','month'].includes(v);
+  const showFilter = ['list','month'].includes(v);
   document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
-  document.getElementById('print-btn').style.display  = (v === 'week' || v === 'month') ? '' : 'none';
+  document.getElementById('print-btn').style.display  = (v === 'month') ? '' : 'none';
   if (!showFilter) { currentTagFilter = null; document.getElementById('tag-bar').style.display = 'none'; }
   renderTodos();
 }
@@ -364,52 +367,54 @@ function renderTodos() {
   const el = document.getElementById('todo-content');
   if      (currentView === 'today') renderTodayView(el);
   else if (currentView === 'board') renderBoardView(el);
-  else if (currentView === 'week')  renderWeekView(el);
   else if (currentView === 'month') renderMonthView(el);
-  else if (currentView === 'done')  renderDoneView(el);
   else                               renderListView(el);
 }
 
 function renderTodayView(el) {
-  const td    = today();
+  const td  = today();
+  const d3  = new Date(td + 'T00:00:00');
+  d3.setDate(d3.getDate() + 3);
+  const d3str = d3.toISOString().slice(0, 10);
+
   const overdue  = allTodos.filter(t => t.status !== 'done' && t.due_date && t.due_date < td)
     .sort((a,b) => a.due_date.localeCompare(b.due_date));
   const dueToday = allTodos.filter(t => t.status !== 'done' && t.due_date === td)
     .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
+  const dueSoon  = allTodos.filter(t => t.status !== 'done' && t.due_date && t.due_date > td && t.due_date <= d3str)
+    .sort((a,b) => a.due_date.localeCompare(b.due_date));
 
   let html = '';
-  if (overdue.length) {
+  if (overdue.length)
     html += `<div class="section-label">⚠ Overdue (${overdue.length})</div>
              <div class="todo-list">${overdue.map(todoCardHtml).join('')}</div>`;
-  }
-  if (dueToday.length) {
-    html += `<div class="section-label" style="${overdue.length?'margin-top:1.5rem':''}">📅 Due Today (${dueToday.length})</div>
+  if (dueToday.length)
+    html += `<div class="section-label"${overdue.length?' style="margin-top:1.5rem"':''}>📅 Due Today (${dueToday.length})</div>
              <div class="todo-list">${dueToday.map(todoCardHtml).join('')}</div>`;
-  }
-  if (!overdue.length && !dueToday.length) {
-    html += '<p class="empty" style="padding:1rem 0;">Nothing due today 🎉</p>';
-  }
+  if (dueSoon.length)
+    html += `<div class="section-label" style="margin-top:1.2rem;">📆 Due in 3 Days (${dueSoon.length})</div>
+             <div class="todo-list">${dueSoon.map(todoCardHtml).join('')}</div>`;
+  if (!overdue.length && !dueToday.length && !dueSoon.length)
+    html += '<p class="empty" style="padding:.5rem 0 1rem;">Nothing urgent in the next 3 days 🎉</p>';
 
-  // Weekly mini-view below
-  const now = new Date(td + 'T00:00:00');
-  const dow = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  // This Week mini-calendar
+  const now  = new Date(td + 'T00:00:00');
+  const dow  = now.getDay();
+  const mon  = new Date(now);
+  mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
   const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   html += '<div class="section-label" style="margin-top:1.8rem;">This Week</div><div class="week-view">';
   for (let i = 0; i < 7; i++) {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const d  = new Date(mon); d.setDate(mon.getDate() + i);
     const ds = d.toISOString().slice(0,10);
-    const isToday = ds === td;
     const dayTodos = allTodos.filter(t => t.due_date === ds)
       .sort((a,b) => ({high:0,medium:1,low:2}[a.priority]||1) - ({high:0,medium:1,low:2}[b.priority]||1));
-    html += `<div class="week-day${isToday?' week-today':''}">
+    html += `<div class="week-day${ds===td?' week-today':''}">
       <div class="week-day-header"><span>${DAYS[i]}</span><span class="week-date">${ds.slice(5)}</span></div>
       <div class="week-cards">
         ${dayTodos.length ? dayTodos.map(t => {
-          const done  = t.status === 'done';
-          const color = projectColor(t.category);
-          return `<div class="week-card${done?' done':''}" style="border-left-color:${color}" onclick="openEditTodo('${t.id}')">
+          const done = t.status === 'done';
+          return `<div class="week-card${done?' done':''}" style="border-left-color:${projectColor(t.category)}" onclick="openEditTodo('${t.id}')">
             <div style="${done?'text-decoration:line-through;':''}">${escHtml(t.title)}</div>
           </div>`;
         }).join('') : '<div class="week-empty">—</div>'}
@@ -417,6 +422,26 @@ function renderTodayView(el) {
     </div>`;
   }
   html += '</div>';
+
+  // Inline Board View (pending only)
+  html += '<div class="section-label" style="margin-top:1.8rem;">Projects</div>';
+  html += '<div class="board-outer"><div class="board-wrap">' +
+    allProjects.map((p, i) => {
+      const color = PALETTE[i % PALETTE.length];
+      const items = allTodos.filter(t => t.category === p.name && t.status !== 'done')
+        .sort((a,b) => (a.due_date||'').localeCompare(b.due_date||''));
+      return `<div class="board-col">
+        <div class="board-col-header" style="background:${color}">
+          <span>${escHtml(p.name)}</span>
+          <span class="board-col-count">${items.length}</span>
+        </div>
+        <div class="board-cards">
+          ${items.map(t => boardCardHtml(t, color)).join('') ||
+            '<div style="font-size:.78rem;color:var(--gray-500);padding:.3rem .2rem">No todos</div>'}
+        </div>
+      </div>`;
+    }).join('') + '</div></div>';
+
   el.innerHTML = html;
 }
 
@@ -605,6 +630,38 @@ function getAllTags() {
   });
   return [...set].sort();
 }
+// ===== TAG AUTOCOMPLETE =====
+function tagAutocomplete(input) {
+  const sug = document.getElementById('tag-suggestions');
+  const val = input.value;
+  // Get the last token (after last comma)
+  const parts   = val.split(',');
+  const current = parts[parts.length - 1].trim().toLowerCase();
+  if (!current) { sug.style.display = 'none'; return; }
+  const allTags = getAllTags();
+  const matches = allTags.filter(t => t.toLowerCase().startsWith(current) && !parts.slice(0,-1).map(s=>s.trim()).includes(t));
+  if (!matches.length) { sug.style.display = 'none'; return; }
+  sug.style.display = 'block';
+  sug.innerHTML = matches.map(t =>
+    `<div style="padding:.45rem .75rem;cursor:pointer;font-size:.87rem;" onmousedown="pickTag('${escHtml(t)}')"
+          onmouseenter="this.style.background='var(--gray-100)'" onmouseleave="this.style.background=''">${escHtml(t)}</div>`
+  ).join('');
+}
+
+function pickTag(tag) {
+  const input = document.getElementById('f-tags');
+  const parts = input.value.split(',');
+  parts[parts.length - 1] = ' ' + tag;
+  input.value = parts.join(',').replace(/^ /, '') + ', ';
+  closeTagSug();
+  input.focus();
+}
+
+function closeTagSug() {
+  const sug = document.getElementById('tag-suggestions');
+  if (sug) sug.style.display = 'none';
+}
+
 function setTagFilter(tag, el) {
   currentTagFilter = (currentTagFilter === tag) ? null : tag;
   document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
@@ -626,18 +683,27 @@ function openTodoNotes(id) {
 }
 
 function renderNotesList(progress) {
-  const el    = document.getElementById('notes-list');
-  const lines = (progress || '').split('\n').map(s => s.trim()).filter(Boolean).reverse();
-  if (!lines.length) {
-    el.innerHTML = '<p style="font-size:.83rem;color:var(--gray-500);">No notes yet.</p>';
+  const el      = document.getElementById('notes-list');
+  const entries = (progress || '').split('\n').map(s => s.trim()).filter(Boolean).reverse();
+  if (!entries.length) {
+    el.innerHTML = '<p style="font-size:.83rem;color:var(--gray-500);padding:.2rem 0;">No notes yet.</p>';
     return;
   }
-  el.innerHTML = lines.map(line => {
-    const m = line.match(/^(\d{4}-\d{2}-\d{2}): (.+)$/s);
-    if (m) return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px solid var(--gray-200);">
-      <span style="font-size:.72rem;font-weight:700;color:var(--gray-500);">${m[1]}</span><br>
-      <span style="font-size:.84rem;">${escHtml(m[2])}</span></div>`;
-    return `<div style="margin-bottom:.6rem;font-size:.84rem;">${escHtml(line)}</div>`;
+  el.innerHTML = entries.map((line, idx) => {
+    const m    = line.match(/^(\d{4}-\d{2}-\d{2}): (.+)$/s);
+    const ts   = m ? m[1] : null;
+    const text = m ? m[2] : line;
+    const isLast = idx === entries.length - 1;
+    return `<div style="display:flex;gap:.65rem;padding:.5rem 0;${isLast?'':'border-bottom:1px solid var(--gray-200)'}">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:.3rem;flex-shrink:0;"></div>
+        ${isLast?'':'<div style="width:2px;flex:1;background:var(--gray-200);margin:.25rem 0;"></div>'}
+      </div>
+      <div style="flex:1;padding-bottom:${isLast?'0':'.4rem'};">
+        ${ts?`<div style="font-size:.71rem;font-weight:700;color:var(--gray-500);margin-bottom:.18rem;">${ts}</div>`:''}
+        <div style="font-size:.85rem;line-height:1.5;white-space:pre-wrap;">${escHtml(text)}</div>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -688,7 +754,7 @@ function todoCardHtml(t) {
         ${t.tags?`<div style="margin-top:.3rem;">${renderTagPills(t.tags)}</div>`:''}
       </div>
       <div class="todo-actions">
-        <button class="btn btn-ghost btn-sm" title="Progress notes" onclick="openTodoNotes('${t.id}')">📝</button>
+        <button class="btn btn-ghost btn-sm" onclick="openTodoNotes('${t.id}')">Note</button>
         <button class="btn btn-ghost btn-sm" title="Extend due date" onclick="openExtend('${t.id}','${t.due_date||''}')">⏱</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditTodo('${t.id}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="delTodo('${t.id}')">Del</button>
