@@ -1165,7 +1165,12 @@ async function updateProjectGroup(id, group) {
   const p = allProjects.find(p => p.id === id);
   if (!p) return;
   p.group = group;
-  await apiCall({ action: 'update_project', id, group });
+  const res = await apiCall({ action: 'update_project', id, group });
+  if (!res.ok) {
+    const errEl = document.getElementById('proj-add-err');
+    if (errEl) errEl.textContent = 'Save failed: ' + (res.error || 'unknown error') + ' — please redeploy GAS.';
+    return;
+  }
   markProjDirty();
   populateFilterBar();
   populateCategoryDropdown();
