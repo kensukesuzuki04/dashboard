@@ -26,7 +26,7 @@
       <div class="view-toggle">
         <span class="view-btn active" onclick="setView('today',this)">Today</span>
         <span class="view-btn"        onclick="setView('list',this)">List</span>
-        <span class="view-btn"        onclick="setView('board',this)">Board</span>
+        <span class="view-btn"        onclick="setView('board',this)">By Categories</span>
         <span class="view-btn"        onclick="setView('month',this)">Month</span>
       </div>
     </div>
@@ -324,7 +324,7 @@ function setView(v, el) {
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   const panel = document.getElementById('panel-todos');
-  panel.classList.toggle('board-mode', v === 'board');
+  panel.classList.remove('board-mode');
   panel.classList.toggle('month-mode', v === 'month');
   const showFilter = ['list','month'].includes(v);
   document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
@@ -433,7 +433,7 @@ function renderTodayView(el) {
   html += '</div>';
 
   // Inline Board View (pending only)
-  html += '<div class="section-label" style="margin-top:1.8rem;">Projects</div>';
+  html += '<div class="section-label" style="margin-top:1.8rem;">By Categories</div>';
   html += '<div class="board-outer"><div class="board-wrap">' +
     allProjects.map((p, i) => {
       const color = PALETTE[i % PALETTE.length];
