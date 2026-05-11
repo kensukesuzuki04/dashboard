@@ -29,6 +29,7 @@
         <span class="view-btn"        onclick="setView('board',this)">Board</span>
         <span class="view-btn"        onclick="setView('week',this)">Week</span>
         <span class="view-btn"        onclick="setView('month',this)">Month</span>
+        <span class="view-btn"        onclick="setView('done',this)">Done</span>
       </div>
     </div>
     <div style="display:flex;gap:.4rem;">
@@ -184,6 +185,26 @@
   </div>
 </div>
 
+<!-- MODAL: Progress Notes -->
+<div class="modal-overlay" id="notes-modal" onclick="overlayClose(event,'notes-modal')">
+  <div class="modal" style="width:500px;">
+    <h3 id="notes-modal-title" style="font-size:.97rem;margin-bottom:.4rem;"></h3>
+    <p id="notes-modal-meta" style="font-size:.78rem;color:var(--gray-600);margin-bottom:.9rem;"></p>
+    <input type="hidden" id="f-notes-id">
+    <div id="notes-list" style="max-height:220px;overflow-y:auto;margin-bottom:.9rem;
+         border:1px solid var(--gray-200);border-radius:7px;padding:.7rem;background:var(--gray-100);"></div>
+    <div class="form-group">
+      <label>Add Note</label>
+      <textarea id="f-new-note" placeholder="What's the progress?" style="min-height:64px;"
+                onkeydown="if(event.key==='Enter'&&event.metaKey)addTodoNote()"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('notes-modal')">Close</button>
+      <button class="btn btn-primary" onclick="addTodoNote()">Add Note</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Add Student -->
 <div class="modal-overlay" id="student-modal" onclick="overlayClose(event,'student-modal')">
   <div class="modal">
@@ -265,7 +286,7 @@ async function init() {
     apiCall({ action: 'get_todos' }),
     apiCall({ action: 'get_projects' })
   ]);
-  allTodos    = tr.data || [];
+  allTodos    = (tr.data || []).map(normalizeTodo);
   allProjects = pr.data || [];
   populateFilterBar();
   populateCategoryDropdown();
@@ -296,13 +317,14 @@ function setView(v, el) {
   const showFilter = ['list','week','month'].includes(v);
   document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
   document.getElementById('print-btn').style.display  = (v === 'week' || v === 'month') ? '' : 'none';
+  if (!showFilter) { currentTagFilter = null; document.getElementById('tag-bar').style.display = 'none'; }
   renderTodos();
 }
 
 // ===== TODOS =====
 async function loadTodos() {
   const res = await apiCall({ action: 'get_todos' });
-  allTodos  = res.data || [];
+  allTodos  = (res.data || []).map(normalizeTodo);
   renderTodos();
 }
 
@@ -344,6 +366,7 @@ function renderTodos() {
   else if (currentView === 'board') renderBoardView(el);
   else if (currentView === 'week')  renderWeekView(el);
   else if (currentView === 'month') renderMonthView(el);
+  else if (currentView === 'done')  renderDoneView(el);
   else                               renderListView(el);
 }
 
@@ -530,6 +553,28 @@ function goToday() {
 
 function printView() { window.print(); }
 
+function renderDoneView(el) {
+  const done = allTodos.filter(t => t.status === 'done')
+    .sort((a,b) => (b.due_date||'').localeCompare(a.due_date||''));
+  if (!done.length) { el.innerHTML = '<p class="empty" style="padding:1rem 0;">No completed todos yet.</p>'; return; }
+  el.innerHTML = '<div class="todo-list">' + done.map(t => `
+    <div class="card todo-card done" style="border-left-color:${projectColor(t.category)}">
+      <div class="todo-body">
+        <div class="todo-title" style="text-decoration:line-through">${escHtml(t.title)}</div>
+        <div class="todo-meta">
+          <span class="badge badge-${t.priority}">${t.priority}</span>
+          ${escHtml(t.category)}${t.due_date?' · '+t.due_date:''}
+        </div>
+        ${t.completion_note?`<div class="todo-desc" style="color:#276749;margin-top:.3rem;">✓ ${escHtml(t.completion_note)}</div>`:''}
+        ${t.tags?`<div style="margin-top:.3rem;">${renderTagPills(t.tags)}</div>`:''}
+      </div>
+      <div class="todo-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openTodoNotes('${t.id}')">📝</button>
+        <button class="btn btn-ghost btn-sm" onclick="reopenTodo('${t.id}')">Reopen</button>
+      </div>
+    </div>`).join('') + '</div>';
+}
+
 function filterTodos(todos) {
   let items = currentFilter === 'all' ? todos : todos.filter(t => t.category === currentFilter);
   if (currentTagFilter)
@@ -567,6 +612,59 @@ function setTagFilter(tag, el) {
   renderTodos();
 }
 
+// ===== PROGRESS NOTES =====
+function openTodoNotes(id) {
+  const t = todoMap[id];
+  if (!t) return;
+  document.getElementById('f-notes-id').value = id;
+  document.getElementById('notes-modal-title').textContent = t.title;
+  document.getElementById('notes-modal-meta').textContent =
+    (t.category || '') + (t.due_date ? ' · Due: ' + t.due_date : '');
+  document.getElementById('f-new-note').value = '';
+  renderNotesList(t.progress || '');
+  openModal('notes-modal');
+}
+
+function renderNotesList(progress) {
+  const el    = document.getElementById('notes-list');
+  const lines = (progress || '').split('\n').map(s => s.trim()).filter(Boolean).reverse();
+  if (!lines.length) {
+    el.innerHTML = '<p style="font-size:.83rem;color:var(--gray-500);">No notes yet.</p>';
+    return;
+  }
+  el.innerHTML = lines.map(line => {
+    const m = line.match(/^(\d{4}-\d{2}-\d{2}): (.+)$/s);
+    if (m) return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px solid var(--gray-200);">
+      <span style="font-size:.72rem;font-weight:700;color:var(--gray-500);">${m[1]}</span><br>
+      <span style="font-size:.84rem;">${escHtml(m[2])}</span></div>`;
+    return `<div style="margin-bottom:.6rem;font-size:.84rem;">${escHtml(line)}</div>`;
+  }).join('');
+}
+
+async function addTodoNote() {
+  const id   = document.getElementById('f-notes-id').value;
+  const note = document.getElementById('f-new-note').value.trim();
+  if (!note) return;
+  const t       = todoMap[id];
+  const entry   = `${today()}: ${note}`;
+  const updated = t.progress ? t.progress + '\n' + entry : entry;
+  await apiCall({ action: 'update_todo', id, progress: updated });
+  document.getElementById('f-new-note').value = '';
+  await loadTodos();
+  renderNotesList(todoMap[id]?.progress || updated);
+}
+
+async function reopenTodo(id) {
+  await apiCall({ action: 'update_todo', id, status: 'pending', completion_note: '' });
+  loadTodos();
+}
+
+function normalizeTodo(t) {
+  if (t.due_date) t.due_date = String(t.due_date).slice(0, 10);
+  if (t.tags && /^\d{4}-\d{2}-\d{2}T/.test(String(t.tags).trim())) t.tags = '';
+  return t;
+}
+
 function projectColor(name) {
   if (!name || name === 'Uncategorized') return 'var(--gray-400)';
   const i = allProjects.findIndex(p => p.name === name);
@@ -590,6 +688,7 @@ function todoCardHtml(t) {
         ${t.tags?`<div style="margin-top:.3rem;">${renderTagPills(t.tags)}</div>`:''}
       </div>
       <div class="todo-actions">
+        <button class="btn btn-ghost btn-sm" title="Progress notes" onclick="openTodoNotes('${t.id}')">📝</button>
         <button class="btn btn-ghost btn-sm" title="Extend due date" onclick="openExtend('${t.id}','${t.due_date||''}')">⏱</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditTodo('${t.id}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="delTodo('${t.id}')">Del</button>
@@ -770,7 +869,7 @@ async function deleteProject(id, name) {
     apiCall({ action: 'get_todos' })
   ]);
   allProjects = pr.data || [];
-  allTodos    = tr.data || [];
+  allTodos    = (tr.data || []).map(normalizeTodo);
   renderProjectsModal();
   populateFilterBar();
   populateCategoryDropdown();
