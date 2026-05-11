@@ -88,7 +88,12 @@
         <option value="low">Low</option>
       </select></div>
     <div class="form-group"><label>Due Date</label>
-      <input type="date" id="f-due"></div>
+      <div style="display:flex;gap:.4rem;align-items:center;">
+        <input type="date" id="f-due" style="flex:1;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-due').value=today()">Today</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-due').value=tomorrow()">Tomorrow</button>
+      </div>
+    </div>
     <div class="check-row">
       <input type="checkbox" id="f-cal">
       <label for="f-cal">Add to Google Calendar</label>
@@ -132,7 +137,11 @@
     <input type="hidden" id="f-extend-id">
     <div class="form-group">
       <label>New Due Date</label>
-      <input type="date" id="f-extend-date">
+      <div style="display:flex;gap:.4rem;align-items:center;">
+        <input type="date" id="f-extend-date" style="flex:1;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-extend-date').value=today()">Today</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-extend-date').value=tomorrow()">Tomorrow</button>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('extend-modal')">Cancel</button>
@@ -1091,6 +1100,7 @@ async function saveMeeting() {
 }
 
 // ===== UTILS =====
+function tomorrow() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
