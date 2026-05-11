@@ -3,17 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Professor Dashboard</title>
+<title>Dashboard</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <h1>Research &amp; Teaching Dashboard</h1>
-  <button class="logout-btn" onclick="logout()">Sign out</button>
+  <h1>Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:1rem;">
+    <span id="welcome-msg" style="font-size:.84rem;opacity:.85;"></span>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </div>
 </header>
 
 <div class="tabs">
-  <div class="tab active" data-panel="todos"    onclick="switchTab(this)">Todos</div>
+  <div class="tab active" data-panel="todos"    onclick="switchTab(this)">To Dos</div>
   <div class="tab"        data-panel="advising" onclick="switchTab(this)">Advising</div>
   <div class="tab"        data-panel="students" onclick="switchTab(this)">Students</div>
 </div>
@@ -22,7 +25,7 @@
 <div class="panel active" id="panel-todos">
   <div class="sec-header" style="flex-wrap:wrap;gap:.5rem;">
     <div style="display:flex;align-items:center;gap:.75rem;">
-      <h2>Todo List</h2>
+      <h2>To Do List</h2>
       <div class="view-toggle">
         <span class="view-btn active" onclick="setView('today',this)">Today</span>
         <span class="view-btn"        onclick="setView('list',this)">List</span>
@@ -34,7 +37,7 @@
       <button class="btn btn-ghost no-print" id="print-btn" style="display:none" onclick="printView()">🖨 Print</button>
       <button class="btn btn-ghost" onclick="openProjectModal()">⚙ Projects</button>
       <button class="btn btn-ghost" onclick="openModal('bulk-modal')">📢 Bulk Assign</button>
-      <button class="btn btn-primary" onclick="openAddTodo()">+ Add Todo</button>
+      <button class="btn btn-primary" onclick="openAddTodo()">+ Add To Do</button>
     </div>
   </div>
   <div class="filter-bar" id="filter-bar" style="display:none;"></div>
@@ -52,7 +55,7 @@
     </select>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
-    <h3 style="font-size:.95rem;">Todos</h3>
+    <h3 style="font-size:.95rem;">To Dos</h3>
     <button class="btn btn-primary btn-sm" onclick="openAddAdvisingTodo()">+ Add</button>
   </div>
   <div class="todo-list" id="adv-todo-list"><p class="empty">Select a student.</p></div>
@@ -75,12 +78,28 @@
 <!-- MODAL: Add/Edit Todo -->
 <div class="modal-overlay" id="todo-modal" onclick="overlayClose(event,'todo-modal')">
   <div class="modal">
-    <h3 id="todo-modal-title">Add Todo</h3>
+    <h3 id="todo-modal-title">Add To Do</h3>
     <input type="hidden" id="f-todo-id">
     <div class="form-group"><label>Title *</label>
       <input type="text" id="f-title"></div>
     <div class="form-group"><label>Project</label>
-      <select id="f-cat"></select></div>
+      <select id="f-cat"></select>
+      <div style="margin-top:.35rem;">
+        <button type="button" class="btn btn-ghost btn-sm" id="new-proj-toggle" onclick="toggleNewProj()">+ New project</button>
+      </div>
+      <div id="new-proj-form" style="display:none;gap:.4rem;flex-wrap:wrap;margin-top:.45rem;">
+        <input type="text" id="f-inline-proj-name" placeholder="Project name"
+               style="flex:1;min-width:110px;padding:.42rem .65rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.87rem;"
+               onkeydown="if(event.key==='Enter')createProjectInline()">
+        <select id="f-inline-proj-group" style="padding:.42rem .65rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.87rem;">
+          <option value="Research">Research</option>
+          <option value="Admin">Admin</option>
+          <option value="Teaching">Teaching</option>
+          <option value="Private">Private</option>
+        </select>
+        <button type="button" class="btn btn-primary btn-sm" onclick="createProjectInline()">Add</button>
+      </div>
+    </div>
     <div class="form-group"><label>Priority</label>
       <select id="f-pri">
         <option value="high">High</option>
@@ -155,10 +174,16 @@
   <div class="modal">
     <h3>Manage Projects</h3>
     <div id="proj-list-modal" style="margin-bottom:1rem;"></div>
-    <div style="display:flex;gap:.5rem;">
-      <input type="text" id="f-proj-name" placeholder="New project name"
-             style="flex:1;padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.9rem;"
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <input type="text" id="f-proj-name" placeholder="Project name"
+             style="flex:1;min-width:130px;padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.9rem;"
              onkeydown="if(event.key==='Enter')addProject()">
+      <select id="f-proj-group" style="padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.87rem;">
+        <option value="Research">Research</option>
+        <option value="Admin">Admin</option>
+        <option value="Teaching">Teaching</option>
+        <option value="Private">Private</option>
+      </select>
       <button class="btn btn-primary" onclick="addProject()">Add</button>
     </div>
     <div id="proj-add-err" style="color:var(--red);font-size:.8rem;margin-top:.4rem;min-height:1rem;"></div>
@@ -171,7 +196,7 @@
 <!-- MODAL: Bulk Assign -->
 <div class="modal-overlay" id="bulk-modal" onclick="overlayClose(event,'bulk-modal')">
   <div class="modal">
-    <h3>Bulk Assign Todo</h3>
+    <h3>Bulk Assign To Do</h3>
     <div class="form-group"><label>Title *</label>
       <input type="text" id="f-bulk-title"></div>
     <div class="form-group"><label>Assign To</label>
@@ -243,7 +268,7 @@
 <!-- MODAL: Advising Todo -->
 <div class="modal-overlay" id="adv-todo-modal" onclick="overlayClose(event,'adv-todo-modal')">
   <div class="modal">
-    <h3>Add Advising Todo</h3>
+    <h3>Add Advising To Do</h3>
     <div class="form-group"><label>Title *</label>
       <input type="text" id="f-at-title"></div>
     <div class="form-group"><label>Assigned To</label>
@@ -280,6 +305,10 @@
   </div>
 </div>
 
+<div id="save-toast" style="position:fixed;bottom:1.5rem;right:1.5rem;background:#276749;color:#fff;
+     padding:.5rem 1.1rem;border-radius:8px;font-size:.84rem;font-weight:600;opacity:0;
+     transition:opacity .25s;z-index:500;pointer-events:none;">Saved ✓</div>
+
 <script src="config.js"></script>
 <script src="api.js"></script>
 <script>
@@ -287,13 +316,18 @@ const pw = sessionStorage.getItem('prof_pw');
 if (!pw) window.location.href = 'index.html';
 
 const PALETTE = ['#3182ce','#48bb78','#ed8936','#9f7aea','#e53e3e','#38b2ac','#d69e2e','#b794f4'];
+const GROUPS  = ['Research','Admin','Teaching','Private'];
+const GROUP_COLORS = { Research:'#3182ce', Admin:'#ed8936', Teaching:'#48bb78', Private:'#9f7aea' };
 let allTodos = [], allProjects = [], allStudents = [];
 let currentFilter = 'all', currentView = 'today', currentTagFilter = null;
 let currentMonth = new Date();
 let todoMap = {};
+let _dragProjId = null;
 
 // ===== INIT =====
 async function init() {
+  const name = (typeof CONFIG !== 'undefined' && CONFIG.DISPLAY_NAME) ? CONFIG.DISPLAY_NAME : '';
+  document.getElementById('welcome-msg').textContent = name ? `Welcome, ${name}` : '';
   const [tr, pr] = await Promise.all([
     apiCall({ action: 'get_todos' }),
     apiCall({ action: 'get_projects' })
@@ -341,16 +375,23 @@ async function loadTodos() {
 }
 
 function populateFilterBar() {
-  const hasUncat = allTodos.some(t => !allProjects.some(p => p.name === t.category));
+  const usedGroups = GROUPS.filter(g => allProjects.some(p => p.group === g));
+  const hasUncat   = allTodos.some(t => !allProjects.some(p => p.name === t.category));
   document.getElementById('filter-bar').innerHTML =
     '<span class="chip active" onclick="setFilter(\'all\',this)">All</span>' +
-    allProjects.map(p => `<span class="chip" onclick="setFilter('${escHtml(p.name)}',this)">${escHtml(p.name)}</span>`).join('') +
+    usedGroups.map(g => `<span class="chip" onclick="setFilter('${g}',this)">${g}</span>`).join('') +
     (hasUncat ? '<span class="chip" onclick="setFilter(\'Uncategorized\',this)" style="border-style:dashed">Uncategorized</span>' : '');
 }
 
 function populateCategoryDropdown() {
-  document.getElementById('f-cat').innerHTML =
-    allProjects.map(p => `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
+  const sel      = document.getElementById('f-cat');
+  const byGroup  = {};
+  allProjects.forEach(p => { const g = p.group||'Other'; (byGroup[g]||(byGroup[g]=[])).push(p); });
+  const order    = [...GROUPS, ...Object.keys(byGroup).filter(g => !GROUPS.includes(g))];
+  sel.innerHTML  = order.filter(g => byGroup[g]).map(g =>
+    `<optgroup label="${escHtml(g)}">${byGroup[g].map(p =>
+      `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('')}</optgroup>`
+  ).join('');
 }
 
 function setFilter(f, el) {
@@ -432,24 +473,9 @@ function renderTodayView(el) {
   }
   html += '</div>';
 
-  // Inline Board View (pending only)
+  // Inline Board View (pending only, grouped)
   html += '<div class="section-label" style="margin-top:1.8rem;">By Categories</div>';
-  html += '<div class="board-outer"><div class="board-wrap">' +
-    allProjects.map((p, i) => {
-      const color = PALETTE[i % PALETTE.length];
-      const items = allTodos.filter(t => t.category === p.name && t.status !== 'done')
-        .sort((a,b) => (a.due_date||'').localeCompare(b.due_date||''));
-      return `<div class="board-col">
-        <div class="board-col-header" style="background:${color}">
-          <span>${escHtml(p.name)}</span>
-          <span class="board-col-count">${items.length}</span>
-        </div>
-        <div class="board-cards">
-          ${items.map(t => boardCardHtml(t, color)).join('') ||
-            '<div style="font-size:.78rem;color:var(--gray-500);padding:.3rem .2rem">No todos</div>'}
-        </div>
-      </div>`;
-    }).join('') + '</div></div>';
+  html += '<div class="board-outer">' + groupedBoardHtml(true) + '</div>';
 
   el.innerHTML = html;
 }
@@ -466,31 +492,66 @@ function renderListView(el) {
   });
   el.innerHTML = items.length
     ? '<div class="todo-list">' + items.map(todoCardHtml).join('') + '</div>'
-    : '<p class="empty">No todos.</p>';
+    : '<p class="empty">No to dos.</p>';
+}
+
+function boardColHtml(p, i, pendingOnly) {
+  const color = PALETTE[i % PALETTE.length];
+  let items = allTodos.filter(t => t.category === p.name);
+  if (pendingOnly) {
+    items = items.filter(t => t.status !== 'done')
+      .sort((a,b) => (a.due_date||'').localeCompare(b.due_date||''));
+  } else {
+    items = items.sort((a,b) => {
+      if (a.status==='done' && b.status!=='done') return 1;
+      if (b.status==='done' && a.status!=='done') return -1;
+      return (a.due_date||'').localeCompare(b.due_date||'');
+    });
+  }
+  const count = pendingOnly ? items.length : items.filter(t => t.status !== 'done').length;
+  return `<div class="board-col"
+    ondragover="boardDragOver(event)"
+    ondragleave="boardDragLeave(event)"
+    ondrop="boardDrop(event,'${p.id}')">
+    <div class="board-col-header" draggable="true" style="background:${color};cursor:grab;"
+         title="Drag to reorder"
+         ondragstart="boardDragStart(event,'${p.id}')"
+         ondragend="boardDragEnd()">
+      <span><span style="opacity:.6;margin-right:.3rem;letter-spacing:.05em;">⠿</span>${escHtml(p.name)}</span>
+      <span class="board-col-count">${count}</span>
+    </div>
+    <div class="board-cards">
+      ${items.map(t => boardCardHtml(t, color)).join('') ||
+        '<div style="font-size:.78rem;color:var(--gray-500);padding:.3rem .2rem">No todos</div>'}
+    </div>
+  </div>`;
+}
+
+function groupedBoardHtml(pendingOnly) {
+  let html = '';
+  GROUPS.forEach(g => {
+    const projs = allProjects.filter(p => p.group === g);
+    if (!projs.length) return;
+    const gc = GROUP_COLORS[g] || '#718096';
+    html += `<div style="margin-bottom:1.8rem;">
+      <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+                  color:${gc};border-bottom:2px solid ${gc};padding-bottom:.22rem;margin-bottom:.65rem;">${escHtml(g)}</div>
+      <div class="board-wrap">${projs.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
+    </div>`;
+  });
+  const other = allProjects.filter(p => !p.group || !GROUPS.includes(p.group));
+  if (other.length) {
+    html += `<div style="margin-bottom:1.8rem;">
+      <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+                  color:var(--gray-500);border-bottom:2px solid var(--gray-300);padding-bottom:.22rem;margin-bottom:.65rem;">Other</div>
+      <div class="board-wrap">${other.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
+    </div>`;
+  }
+  return html;
 }
 
 function renderBoardView(el) {
-  el.innerHTML = '<div class="board-outer"><div class="board-wrap">' +
-    allProjects.map((p, i) => {
-      const color = PALETTE[i % PALETTE.length];
-      const items = allTodos.filter(t => t.category === p.name)
-        .sort((a,b) => {
-          if (a.status==='done' && b.status!=='done') return 1;
-          if (b.status==='done' && a.status!=='done') return -1;
-          return (a.due_date||'').localeCompare(b.due_date||'');
-        });
-      const pending = items.filter(t => t.status !== 'done').length;
-      return `<div class="board-col">
-        <div class="board-col-header" style="background:${color}">
-          <span>${escHtml(p.name)}</span>
-          <span class="board-col-count">${pending}</span>
-        </div>
-        <div class="board-cards">
-          ${items.map(t => boardCardHtml(t, color)).join('') ||
-            '<div style="font-size:.78rem;color:var(--gray-500);padding:.3rem .2rem">No todos</div>'}
-        </div>
-      </div>`;
-    }).join('') + '</div></div>';
+  el.innerHTML = '<div class="board-outer">' + groupedBoardHtml(false) + '</div>';
 }
 
 function renderWeekView(el) {
@@ -610,7 +671,17 @@ function renderDoneView(el) {
 }
 
 function filterTodos(todos) {
-  let items = currentFilter === 'all' ? todos : todos.filter(t => t.category === currentFilter);
+  let items = todos;
+  if (currentFilter !== 'all') {
+    if (GROUPS.includes(currentFilter)) {
+      const names = allProjects.filter(p => p.group === currentFilter).map(p => p.name);
+      items = todos.filter(t => names.includes(t.category));
+    } else if (currentFilter === 'Uncategorized') {
+      items = todos.filter(t => !allProjects.some(p => p.name === t.category));
+    } else {
+      items = todos.filter(t => t.category === currentFilter);
+    }
+  }
   if (currentTagFilter)
     items = items.filter(t => t.tags && t.tags.split(',').map(s => s.trim()).includes(currentTagFilter));
   return items;
@@ -724,6 +795,7 @@ async function addTodoNote() {
   const entry   = `${today()}: ${note}`;
   const updated = t.progress ? t.progress + '\n' + entry : entry;
   await apiCall({ action: 'update_todo', id, progress: updated });
+  showSaveToast();
   document.getElementById('f-new-note').value = '';
   await loadTodos();
   renderNotesList(todoMap[id]?.progress || updated);
@@ -805,6 +877,7 @@ async function saveCompletion() {
   const id   = document.getElementById('f-complete-id').value;
   const note = document.getElementById('f-complete-note').value.trim();
   await apiCall({ action: 'update_todo', id, status: 'done', completion_note: note });
+  showSaveToast();
   closeModal('complete-modal');
   loadTodos();
 }
@@ -820,6 +893,7 @@ async function saveExtend() {
   const id   = document.getElementById('f-extend-id').value;
   const date = document.getElementById('f-extend-date').value;
   await apiCall({ action: 'update_todo', id, due_date: date });
+  showSaveToast();
   closeModal('extend-modal');
   loadTodos();
 }
@@ -834,7 +908,7 @@ function openAddTodo() {
   document.getElementById('f-pri').value         = 'medium';
   document.getElementById('f-tags').value        = '';
   if (allProjects.length) document.getElementById('f-cat').selectedIndex = 0;
-  document.getElementById('todo-modal-title').textContent = 'Add Todo';
+  document.getElementById('todo-modal-title').textContent = 'Add To Do';
   openModal('todo-modal');
 }
 
@@ -852,7 +926,7 @@ function openEditTodo(id) {
   for (let i = 0; i < sel.options.length; i++) {
     if (sel.options[i].value === t.category) { sel.selectedIndex = i; break; }
   }
-  document.getElementById('todo-modal-title').textContent = 'Edit Todo';
+  document.getElementById('todo-modal-title').textContent = 'Edit To Do';
   openModal('todo-modal');
 }
 
@@ -870,6 +944,7 @@ async function saveTodo() {
     add_to_calendar: document.getElementById('f-cal').checked
   };
   await apiCall({ action: id ? 'update_todo' : 'add_todo', id: id||undefined, ...payload });
+  showSaveToast();
   closeModal('todo-modal');
   loadTodos();
 }
@@ -914,6 +989,49 @@ async function moveProject(id, direction) {
   renderProjectsModal();
   populateFilterBar();
   populateCategoryDropdown();
+  renderTodos();
+}
+
+// ===== BOARD DRAG & DROP =====
+function boardDragStart(e, id) {
+  _dragProjId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  setTimeout(() => e.currentTarget.closest('.board-col').style.opacity = '.35', 0);
+}
+
+function boardDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function boardDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget))
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function boardDragEnd() {
+  _dragProjId = null;
+  document.querySelectorAll('.board-col').forEach(c => {
+    c.style.opacity = '';
+    c.classList.remove('drag-over');
+  });
+}
+
+async function boardDrop(e, targetId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!_dragProjId || _dragProjId === targetId) return;
+  const si = allProjects.findIndex(p => p.id === _dragProjId);
+  const ti = allProjects.findIndex(p => p.id === targetId);
+  if (si < 0 || ti < 0) return;
+  const [moved] = allProjects.splice(si, 1);
+  allProjects.splice(ti, 0, moved);
+  renderTodos();
+  populateFilterBar();
+  populateCategoryDropdown();
+  await apiCall({ action: 'update_project_order', order: allProjects.map(p => p.id) });
 }
 
 async function addProject() {
@@ -925,7 +1043,8 @@ async function addProject() {
     errEl.textContent = 'A project with that name already exists.';
     return;
   }
-  const res = await apiCall({ action: 'add_project', name });
+  const group = document.getElementById('f-proj-group').value;
+  const res = await apiCall({ action: 'add_project', name, group });
   if (!res.ok) { errEl.textContent = res.error || 'Failed to add project.'; return; }
   document.getElementById('f-proj-name').value = '';
   const pr = await apiCall({ action: 'get_projects' });
@@ -1102,6 +1221,44 @@ async function saveMeeting() {
 // ===== UTILS =====
 function tomorrow() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function showSaveToast() {
+  const t = document.getElementById('save-toast');
+  t.style.opacity = '1';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.style.opacity = '0', 1600);
+}
+
+// ===== INLINE PROJECT CREATION =====
+function toggleNewProj() {
+  const form = document.getElementById('new-proj-form');
+  const btn  = document.getElementById('new-proj-toggle');
+  const show = form.style.display === 'none' || form.style.display === '';
+  form.style.display = show ? 'flex' : 'none';
+  btn.textContent    = show ? '✕ Cancel' : '+ New project';
+  if (show) document.getElementById('f-inline-proj-name').focus();
+}
+
+async function createProjectInline() {
+  const name  = document.getElementById('f-inline-proj-name').value.trim();
+  const group = document.getElementById('f-inline-proj-group').value;
+  if (!name) return;
+  if (allProjects.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+    alert('A project with that name already exists.'); return;
+  }
+  const res = await apiCall({ action: 'add_project', name, group });
+  if (!res.ok) { alert(res.error || 'Failed'); return; }
+  const pr = await apiCall({ action: 'get_projects' });
+  allProjects = pr.data || [];
+  populateCategoryDropdown();
+  const sel = document.getElementById('f-cat');
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === name) { sel.selectedIndex = i; break; }
+  }
+  document.getElementById('new-proj-form').style.display = 'none';
+  document.getElementById('new-proj-toggle').textContent = '+ New project';
+  document.getElementById('f-inline-proj-name').value = '';
+  showSaveToast();
+}
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
 function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
