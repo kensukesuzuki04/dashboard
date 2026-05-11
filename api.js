@@ -1,11 +1,12 @@
 async function apiCall(payload) {
-  const pw  = sessionStorage.getItem('prof_pw');
-  const em  = sessionStorage.getItem('student_email');
-  const spw = sessionStorage.getItem('student_pw');
+  const pw     = sessionStorage.getItem('prof_pw');
+  const profEm = sessionStorage.getItem('prof_email');
+  const em     = sessionStorage.getItem('student_email');
+  const spw    = sessionStorage.getItem('student_pw');
   const body = { ...payload };
-  if (pw)  body.password         = pw;
-  if (em)  body.email            = em;
-  if (spw) body.student_password = spw;
+  if (pw)           body.password         = pw;
+  if (profEm || em) body.email            = profEm || em;
+  if (spw)          body.student_password = spw;
   const res = await fetch(CONFIG.API_URL, {
     method: 'POST', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
