@@ -173,17 +173,23 @@
 <div class="modal-overlay" id="project-modal" onclick="overlayClose(event,'project-modal')">
   <div class="modal">
     <h3>Manage Projects</h3>
+    <div style="font-size:.78rem;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Categories</div>
+    <div id="groups-section" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem;"></div>
+    <div style="display:flex;gap:.4rem;margin-bottom:.25rem;">
+      <input type="text" id="f-new-group" placeholder="New category name"
+             style="flex:1;padding:.42rem .65rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.87rem;"
+             onkeydown="if(event.key==='Enter')addGroupModal()">
+      <button class="btn btn-ghost btn-sm" onclick="addGroupModal()">+ Add</button>
+    </div>
+    <div id="group-add-err" style="color:var(--red);font-size:.78rem;min-height:.9rem;margin-bottom:.5rem;"></div>
+    <hr style="border:none;border-top:1px solid var(--gray-200);margin-bottom:.8rem;">
+    <div style="font-size:.78rem;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Projects</div>
     <div id="proj-list-modal" style="margin-bottom:1rem;"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
       <input type="text" id="f-proj-name" placeholder="Project name"
              style="flex:1;min-width:130px;padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.9rem;"
              onkeydown="if(event.key==='Enter')addProject()">
-      <select id="f-proj-group" style="padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.87rem;">
-        <option value="Research">Research</option>
-        <option value="Admin">Admin</option>
-        <option value="Teaching">Teaching</option>
-        <option value="Private">Private</option>
-      </select>
+      <select id="f-proj-group" style="padding:.5rem .7rem;border:1.5px solid var(--gray-300);border-radius:7px;font-size:.87rem;"></select>
       <button class="btn btn-primary" onclick="addProject()">Add</button>
     </div>
     <div id="proj-add-err" style="color:var(--red);font-size:.8rem;margin-top:.4rem;min-height:1rem;"></div>
@@ -316,8 +322,14 @@ const pw = sessionStorage.getItem('prof_pw');
 if (!pw) window.location.href = 'index.html';
 
 const PALETTE = ['#cc0000','#48bb78','#ed8936','#9f7aea','#5a5758','#38b2ac','#d69e2e','#b794f4'];
-const GROUPS  = ['Research','Admin','Teaching','Private'];
-const GROUP_COLORS = { Research:'#cc0000', Admin:'#ed8936', Teaching:'#48bb78', Private:'#5a5758' };
+const GROUP_COLOR_PALETTE = ['#cc0000','#ed8936','#48bb78','#5a5758','#9f7aea','#38b2ac','#d69e2e','#3182ce'];
+let GROUPS      = ['Research','Admin','Teaching','Private'];
+let GROUP_COLORS = {};
+function buildGroupColors() {
+  GROUP_COLORS = {};
+  GROUPS.forEach((g, i) => GROUP_COLORS[g] = GROUP_COLOR_PALETTE[i % GROUP_COLOR_PALETTE.length]);
+}
+buildGroupColors();
 let allTodos = [], allProjects = [], allStudents = [];
 let currentFilter = 'all', currentView = 'today', currentTagFilter = null;
 let currentMonth = new Date();
@@ -330,12 +342,18 @@ async function init() {
   const emailName  = (sessionStorage.getItem('prof_email') || '').split('@')[0];
   const name = configName || emailName;
   document.getElementById('welcome-msg').textContent = name ? `Welcome, ${name}` : '';
-  const [tr, pr] = await Promise.all([
+  const [tr, pr, cr] = await Promise.all([
     apiCall({ action: 'get_todos' }),
-    apiCall({ action: 'get_projects' })
+    apiCall({ action: 'get_projects' }),
+    apiCall({ action: 'get_config' })
   ]);
+  if (cr.ok && cr.data && cr.data.groups_list) {
+    GROUPS = cr.data.groups_list.split(',').filter(Boolean);
+    buildGroupColors();
+  }
   allTodos    = (tr.data || []).map(normalizeTodo);
   allProjects = pr.data || [];
+  populateGroupSelects();
   populateFilterBar();
   populateCategoryDropdown();
   renderTodos();
@@ -543,9 +561,11 @@ function groupedBoardHtml(pendingOnly) {
   });
   const other = allProjects.filter(p => !p.group || !GROUPS.includes(p.group));
   if (other.length) {
+    const defaultG = GROUPS[0] || 'Other';
+    const gc = GROUP_COLORS[defaultG] || '#718096';
     html += `<div style="margin-bottom:1.8rem;">
       <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
-                  color:var(--gray-500);border-bottom:2px solid var(--gray-300);padding-bottom:.22rem;margin-bottom:.65rem;">Other</div>
+                  color:${gc};border-bottom:2px solid ${gc};padding-bottom:.22rem;margin-bottom:.65rem;">${escHtml(defaultG)}</div>
       <div class="board-wrap">${other.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
     </div>`;
   }
@@ -959,8 +979,67 @@ async function delTodo(id) {
 
 // ===== PROJECTS =====
 function openProjectModal() {
+  renderGroupsSection();
   renderProjectsModal();
   openModal('project-modal');
+}
+
+function populateGroupSelects() {
+  const opts = GROUPS.map(g => `<option value="${g}">${g}</option>`).join('');
+  ['f-proj-group','f-inline-proj-group'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+}
+
+function renderGroupsSection() {
+  const el = document.getElementById('groups-section');
+  if (!el) return;
+  el.innerHTML = GROUPS.map(g => {
+    const color = GROUP_COLORS[g] || '#718096';
+    const inUse = allProjects.some(p => (p.group || '') === g);
+    return `<div style="display:inline-flex;align-items:center;gap:.2rem;background:${color};
+                 color:#fff;padding:.18rem .45rem .18rem .6rem;border-radius:20px;font-size:.78rem;font-weight:600;">
+      ${escHtml(g)}
+      ${!inUse ? `<button onclick="removeGroupModal('${escHtml(g)}')"
+                          style="background:none;border:none;color:rgba(255,255,255,.75);cursor:pointer;
+                                 font-size:.9rem;padding:0 .1rem;line-height:1;" title="Remove">×</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function addGroupModal() {
+  const input = document.getElementById('f-new-group');
+  const errEl = document.getElementById('group-add-err');
+  const name  = input.value.trim();
+  if (!name) return;
+  if (GROUPS.includes(name)) { errEl.textContent = 'Already exists.'; return; }
+  GROUPS.push(name);
+  buildGroupColors();
+  input.value = '';
+  errEl.textContent = '';
+  await apiCall({ action: 'set_config', key: 'groups_list', value: GROUPS.join(',') });
+  renderGroupsSection();
+  populateGroupSelects();
+  populateFilterBar();
+  populateCategoryDropdown();
+  showSaveToast();
+}
+
+async function removeGroupModal(name) {
+  const errEl = document.getElementById('group-add-err');
+  if (allProjects.some(p => (p.group || '') === name)) {
+    errEl.textContent = `"${name}" is in use — reassign its projects first.`;
+    return;
+  }
+  GROUPS = GROUPS.filter(g => g !== name);
+  buildGroupColors();
+  await apiCall({ action: 'set_config', key: 'groups_list', value: GROUPS.join(',') });
+  renderGroupsSection();
+  populateGroupSelects();
+  populateFilterBar();
+  populateCategoryDropdown();
+  showSaveToast();
 }
 
 let _dragProjRowId = null;
