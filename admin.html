@@ -1352,7 +1352,7 @@ async function loadStudents() {
 function renderStudents() {
   const el = document.getElementById('student-list');
   if (!allStudents.length) { el.innerHTML = '<p class="empty">No students yet.</p>'; return; }
-  const portalUrl = location.origin + location.pathname.replace('professor.html','') + 'student.html';
+  const portalUrl = location.origin + location.pathname.replace('admin.html','') + 'student.html';
   el.innerHTML = allStudents.map(s => `
     <div class="card student-card" style="margin-bottom:.55rem;">
       <div>

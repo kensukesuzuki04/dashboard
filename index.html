@@ -35,7 +35,7 @@ async function login() {
     if (profRes.ok) {
       sessionStorage.setItem('prof_pw', pw);
       sessionStorage.setItem('prof_email', email);
-      window.location.href = 'professor.html';
+      window.location.href = 'admin.html';
       return;
     }
     const stuRes = await apiCall({ action: 'student_login', email, student_password: pw });
