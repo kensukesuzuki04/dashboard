@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
 <header>
@@ -31,6 +33,7 @@
         <span class="view-btn"        onclick="setView('list',this)">List</span>
         <span class="view-btn"        onclick="setView('board',this)">By Categories</span>
         <span class="view-btn"        onclick="setView('month',this)">Month</span>
+        <span class="view-btn"        onclick="setView('done',this)">Completed</span>
       </div>
     </div>
     <div style="display:flex;gap:.4rem;">
@@ -42,6 +45,7 @@
   </div>
   <div class="filter-bar" id="filter-bar" style="display:none;"></div>
   <div class="tag-bar" id="tag-bar" style="display:none;"></div>
+  <div id="date-range-bar" class="date-range-bar" style="display:none;"></div>
   <div id="todo-content"><p class="empty">Loading…</p></div>
 </div>
 
@@ -109,8 +113,8 @@
     <div class="form-group"><label>Due Date</label>
       <div style="display:flex;gap:.4rem;align-items:center;">
         <input type="date" id="f-due" style="flex:1;">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-due').value=today()">Today</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-due').value=tomorrow()">Tomorrow</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setDateVal('f-due',today())">Today</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setDateVal('f-due',tomorrow())">Tomorrow</button>
       </div>
     </div>
     <div class="check-row">
@@ -127,6 +131,7 @@
            max-height:160px;overflow-y:auto;left:0;right:0;top:100%;"></div>
     </div>
     <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="todo-del-btn" onclick="delTodoFromModal()" style="margin-right:auto;">Delete</button>
       <button class="btn btn-ghost" onclick="closeModal('todo-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTodo()">Save</button>
     </div>
@@ -158,8 +163,8 @@
       <label>New Due Date</label>
       <div style="display:flex;gap:.4rem;align-items:center;">
         <input type="date" id="f-extend-date" style="flex:1;">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-extend-date').value=today()">Today</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('f-extend-date').value=tomorrow()">Tomorrow</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setDateVal('f-extend-date',today())">Today</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setDateVal('f-extend-date',tomorrow())">Tomorrow</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -333,6 +338,7 @@ buildGroupColors();
 let allTodos = [], allProjects = [], allStudents = [];
 let currentFilter = 'all', currentView = 'today', currentTagFilter = null;
 let currentMonth = new Date();
+let currentDateRange = '1month', customRangeStart = '', customRangeEnd = '';
 let todoMap = {};
 let _dragProjId = null;
 
@@ -360,6 +366,7 @@ async function init() {
   populateGroupSelects();
   populateFilterBar();
   populateCategoryDropdown();
+  initFlatpickr();
   renderTodos();
   loadStudents();
 }
@@ -388,6 +395,10 @@ function setView(v, el) {
   document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
   document.getElementById('print-btn').style.display  = (v === 'month') ? '' : 'none';
   if (!showFilter) { currentTagFilter = null; document.getElementById('tag-bar').style.display = 'none'; }
+  const showDateRange = ['list','board'].includes(v);
+  const drBar = document.getElementById('date-range-bar');
+  drBar.style.display = showDateRange ? 'flex' : 'none';
+  if (showDateRange) renderDateRangeBar();
   renderTodos();
 }
 
@@ -411,7 +422,8 @@ function populateFilterBar() {
 function populateCategoryDropdown() {
   const sel      = document.getElementById('f-cat');
   const byGroup  = {};
-  allProjects.forEach(p => { const g = p.group||'Other'; (byGroup[g]||(byGroup[g]=[])).push(p); });
+  const defGrp   = GROUPS[0] || 'Research';
+  allProjects.forEach(p => { const g = p.group||defGrp; (byGroup[g]||(byGroup[g]=[])).push(p); });
   const order    = [...GROUPS, ...Object.keys(byGroup).filter(g => !GROUPS.includes(g))];
   sel.innerHTML  = order.filter(g => byGroup[g]).map(g =>
     `<optgroup label="${escHtml(g)}">${byGroup[g].map(p =>
@@ -443,6 +455,7 @@ function renderTodos() {
   if      (currentView === 'today') renderTodayView(el);
   else if (currentView === 'board') renderBoardView(el);
   else if (currentView === 'month') renderMonthView(el);
+  else if (currentView === 'done')  renderDoneByCategory(el);
   else                               renderListView(el);
 }
 
@@ -506,7 +519,7 @@ function renderTodayView(el) {
 }
 
 function renderListView(el) {
-  let items = filterTodos(allTodos);
+  let items = filterTodos(applyDateFilter(allTodos));
   items = items.sort((a,b) => {
     if (a.status==='done' && b.status!=='done') return 1;
     if (b.status==='done' && a.status!=='done') return -1;
@@ -527,11 +540,12 @@ function boardColHtml(p, i, pendingOnly) {
     items = items.filter(t => t.status !== 'done')
       .sort((a,b) => (a.due_date||'').localeCompare(b.due_date||''));
   } else {
-    items = items.sort((a,b) => {
-      if (a.status==='done' && b.status!=='done') return 1;
-      if (b.status==='done' && a.status!=='done') return -1;
-      return (a.due_date||'').localeCompare(b.due_date||'');
-    });
+    items = applyDateFilter(items)
+      .sort((a,b) => {
+        if (a.status==='done' && b.status!=='done') return 1;
+        if (b.status==='done' && a.status!=='done') return -1;
+        return (a.due_date||'').localeCompare(b.due_date||'');
+      });
   }
   const count = pendingOnly ? items.length : items.filter(t => t.status !== 'done').length;
   return `<div class="board-col"
@@ -570,14 +584,18 @@ function groupedBoardHtml(pendingOnly) {
       <div class="board-wrap">${projs.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
     </div>`;
   });
-  const other = allProjects.filter(p => p.group && !GROUPS.includes(p.group));
-  if (other.length) {
+  const orphanGroupNames = [...new Set(
+    allProjects.filter(p => p.group && !GROUPS.includes(p.group)).map(p => p.group)
+  )];
+  orphanGroupNames.forEach(g => {
+    const projs = allProjects.filter(p => p.group === g);
+    if (!projs.length) return;
     html += `<div style="margin-bottom:1.8rem;">
       <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
-                  color:var(--gray-500);border-bottom:2px solid var(--gray-300);padding-bottom:.22rem;margin-bottom:.65rem;">Others</div>
-      <div class="board-wrap">${other.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
+                  color:var(--gray-500);border-bottom:2px solid var(--gray-300);padding-bottom:.22rem;margin-bottom:.65rem;">${escHtml(g)}</div>
+      <div class="board-wrap">${projs.map(p => boardColHtml(p, allProjects.indexOf(p), pendingOnly)).join('')}</div>
     </div>`;
-  }
+  });
   return html;
 }
 
@@ -699,6 +717,45 @@ function renderDoneView(el) {
         <button class="btn btn-ghost btn-sm" onclick="reopenTodo('${t.id}')">Reopen</button>
       </div>
     </div>`).join('') + '</div>';
+}
+
+function renderDoneByCategory(el) {
+  const doneItems = allTodos.filter(t => t.status === 'done');
+  if (!doneItems.length) { el.innerHTML = '<p class="empty">No completed tasks.</p>'; return; }
+  const defGrp = GROUPS[0] || 'Research';
+  const PINNED = ['Research','Admin','Teaching'];
+  const orderedGroups = [...PINNED.filter(g => GROUPS.includes(g)), ...GROUPS.filter(g => !PINNED.includes(g))];
+  let html = '';
+  orderedGroups.forEach(g => {
+    const projs = allProjects.filter(p => (p.group||defGrp) === g && doneItems.some(t => t.category === p.name));
+    if (!projs.length) return;
+    const gc = GROUP_COLORS[g] || '#718096';
+    html += `<div style="margin-bottom:1.8rem;">
+      <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+                  color:${gc};border-bottom:2px solid ${gc};padding-bottom:.22rem;margin-bottom:.65rem;">${escHtml(g)}</div>
+      <div class="board-wrap">${projs.map(p => {
+        const items = doneItems.filter(t => t.category === p.name)
+          .sort((a,b) => (b.due_date||'').localeCompare(a.due_date||''));
+        const color = PALETTE[allProjects.indexOf(p) % PALETTE.length];
+        return `<div class="board-col">
+          <div class="board-col-header" style="background:${color};">
+            <span>${escHtml(p.name)}</span>
+            <span class="board-col-count">${items.length}</span>
+          </div>
+          <div class="board-cards">${items.map(t => boardCardHtml(t, color)).join('')}</div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  });
+  const uncat = doneItems.filter(t => !allProjects.some(p => p.name === t.category));
+  if (uncat.length) {
+    html += `<div style="margin-bottom:1.8rem;">
+      <div style="font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+                  color:var(--gray-500);border-bottom:2px solid var(--gray-300);padding-bottom:.22rem;margin-bottom:.65rem;">Uncategorized</div>
+      <div class="todo-list">${uncat.map(todoCardHtml).join('')}</div>
+    </div>`;
+  }
+  el.innerHTML = html || '<p class="empty">No completed tasks.</p>';
 }
 
 function filterTodos(todos) {
@@ -916,8 +973,8 @@ async function saveCompletion() {
 
 // Extend due date
 function openExtend(id, currentDate) {
-  document.getElementById('f-extend-id').value   = id;
-  document.getElementById('f-extend-date').value  = currentDate;
+  document.getElementById('f-extend-id').value = id;
+  setDateVal('f-extend-date', currentDate);
   openModal('extend-modal');
 }
 
@@ -935,7 +992,7 @@ function openAddTodo() {
   document.getElementById('f-todo-id').value    = '';
   document.getElementById('f-title').value       = '';
   document.getElementById('f-desc').value        = '';
-  document.getElementById('f-due').value         = '';
+  setDateVal('f-due', '');
   document.getElementById('f-cal').checked       = false;
   document.getElementById('f-pri').value         = 'medium';
   document.getElementById('f-tags').value        = '';
@@ -950,7 +1007,7 @@ function openEditTodo(id) {
   document.getElementById('f-todo-id').value = t.id;
   document.getElementById('f-title').value   = t.title;
   document.getElementById('f-desc').value    = t.description || '';
-  document.getElementById('f-due').value     = t.due_date || '';
+  setDateVal('f-due', t.due_date || '');
   document.getElementById('f-pri').value     = t.priority;
   document.getElementById('f-cal').checked   = false;
   document.getElementById('f-tags').value    = t.tags || '';
@@ -1112,7 +1169,8 @@ function renderProjectsModal() {
       <div style="display:flex;align-items:center;gap:.4rem;">
         <select onchange="updateProjectGroup('${p.id}',this.value)"
                 style="padding:.28rem .55rem;border:1.5px solid var(--gray-300);border-radius:6px;font-size:.8rem;">
-          ${GROUPS.map(g => `<option value="${g}"${(p.group||'Research')===g?' selected':''}>${g}</option>`).join('')}
+          ${[...new Set([...GROUPS, ...(p.group && !GROUPS.includes(p.group) ? [p.group] : [])])]
+            .map(g => `<option value="${g}"${(p.group||(GROUPS[0]||'Research'))===g?' selected':''}>${g}</option>`).join('')}
         </select>
         <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}','${escHtml(p.name)}')">Remove</button>
       </div>
@@ -1393,7 +1451,7 @@ async function saveAdvisingTodo() {
 
 function openAddMeeting() {
   if (!document.getElementById('sel-student').value) return alert('Select a student first.');
-  document.getElementById('f-m-date').value = today();
+  setDateVal('f-m-date', today());
   openModal('meeting-modal');
 }
 
@@ -1407,8 +1465,80 @@ async function saveMeeting() {
   loadAdvisingData();
 }
 
+// ===== DATE RANGE FILTER =====
+function getDateRangeStart() {
+  if (currentDateRange === 'all') return null;
+  if (currentDateRange === 'custom') return customRangeStart || null;
+  const d = new Date();
+  if (currentDateRange === '1month')  d.setMonth(d.getMonth() - 1);
+  if (currentDateRange === '3months') d.setMonth(d.getMonth() - 3);
+  if (currentDateRange === '6months') d.setMonth(d.getMonth() - 6);
+  return d.toISOString().slice(0, 10);
+}
+
+function applyDateFilter(todos) {
+  if (currentDateRange === 'all') return todos;
+  const start = getDateRangeStart();
+  const end   = (currentDateRange === 'custom' && customRangeEnd) ? customRangeEnd : null;
+  return todos.filter(t => {
+    if (t.status !== 'done') return true;
+    if (!t.due_date) return true;
+    if (start && t.due_date < start) return false;
+    if (end   && t.due_date > end)   return false;
+    return true;
+  });
+}
+
+function renderDateRangeBar() {
+  const el = document.getElementById('date-range-bar');
+  if (!el) return;
+  const opts = [
+    { key: '1month',  label: 'Last month' },
+    { key: '3months', label: '3 months' },
+    { key: '6months', label: '6 months' },
+    { key: 'all',     label: 'All time' },
+    { key: 'custom',  label: 'Custom' },
+  ];
+  el.innerHTML =
+    '<span style="font-size:.75rem;font-weight:600;color:var(--gray-600);flex-shrink:0;">Period:</span>' +
+    opts.map(o =>
+      `<span class="chip${currentDateRange===o.key?' active':''}" onclick="setDateRange('${o.key}')">${o.label}</span>`
+    ).join('') +
+    `<span id="custom-range-inputs" style="display:${currentDateRange==='custom'?'flex':'none'};gap:.35rem;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="range-start" value="${customRangeStart}"
+             style="padding:.25rem .5rem;border:1.5px solid var(--gray-300);border-radius:6px;font-size:.78rem;"
+             onchange="customRangeStart=this.value;renderTodos()">
+      <span style="color:var(--gray-600);font-size:.8rem;">—</span>
+      <input type="date" id="range-end" value="${customRangeEnd}"
+             style="padding:.25rem .5rem;border:1.5px solid var(--gray-300);border-radius:6px;font-size:.78rem;"
+             onchange="customRangeEnd=this.value;renderTodos()">
+    </span>`;
+}
+
+function setDateRange(key) {
+  currentDateRange = key;
+  renderDateRangeBar();
+  renderTodos();
+}
+
 // ===== UTILS =====
 function tomorrow() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); }
+
+function setDateVal(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el._flatpickr) el._flatpickr.setDate(val || null, false);
+  else el.value = val || '';
+}
+
+function initFlatpickr() {
+  const cfg = { locale: 'en', dateFormat: 'Y-m-d', allowInput: true };
+  ['f-due','f-extend-date','f-at-due','f-m-date','f-bulk-due'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el._flatpickr) flatpickr(el, cfg);
+  });
+}
+
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function showSaveToast() {
   const t = document.getElementById('save-toast');

@@ -202,6 +202,17 @@ header h1 { font-size: 1.15rem; }
   .week-day, .month-cell { break-inside: avoid; }
 }
 
+/* Mobile responsive */
+@media (max-width: 640px) {
+  header { padding: .7rem 1rem; }
+  .tabs { padding: 0 .5rem; overflow-x: auto; }
+  .panel { padding: 1rem .75rem; }
+  .sec-header { flex-wrap: wrap; gap: .5rem; }
+  .sec-header > div { flex-wrap: wrap; }
+  .view-toggle { flex-wrap: wrap; }
+  .modal { padding: 1.2rem; }
+}
+
 /* Week view */
 .week-view { display: grid; grid-template-columns: repeat(7, 1fr); gap: .55rem; }
 .week-day  { background: #fff; border-radius: 8px; box-shadow: var(--shadow); min-width: 0; }
@@ -216,3 +227,12 @@ header h1 { font-size: 1.15rem; }
 .week-card:hover { background: var(--gray-100); }
 .week-card.done { opacity: .45; }
 .week-empty { font-size: .75rem; color: var(--gray-500); padding: .2rem; }
+
+/* Date range filter bar */
+.date-range-bar { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; margin-bottom: .8rem; }
+
+/* Mobile: override grid after all other rules to ensure correct specificity */
+@media (max-width: 640px) {
+  .week-view { grid-template-columns: 1fr; }
+  .board-wrap { grid-template-columns: 1fr; }
+}
