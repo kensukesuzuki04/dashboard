@@ -13,8 +13,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
 /* Layout */
 header { background: var(--blue-dark); color: #fff; padding: 0.9rem 2rem;
-         display: flex; align-items: center; justify-content: space-between; }
+         display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .4rem; }
 header h1 { font-size: 1.15rem; }
+.header-right { display: flex; align-items: center; gap: 1rem; }
+#welcome-msg { font-size: .84rem; opacity: .85; }
 
 .tabs { display: flex; border-bottom: 2px solid var(--gray-300); background: #fff; padding: 0 2rem; }
 .tab  { padding: 0.85rem 1.3rem; cursor: pointer; font-weight: 600; color: var(--gray-600);
@@ -235,4 +237,6 @@ header h1 { font-size: 1.15rem; }
 @media (max-width: 640px) {
   .week-view { grid-template-columns: 1fr; }
   .board-wrap { grid-template-columns: 1fr; }
+  .header-right { gap: .5rem; }
+  #welcome-msg { font-size: .74rem; }
 }
